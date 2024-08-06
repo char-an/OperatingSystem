@@ -1,0 +1,114 @@
+# Compiled object files
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Debug files
+*.dSYM/
+*.pdb
+
+# Dependency directories
+node_modules/
+deps/
+
+# Other C/C++ specific files
+*.lo
+*.la
+*.al
+*.libs
+*.ds_store
+
+# CMake files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+CMakeLists.txt.user
+
+# IDE specific files
+# CLion
+.idea/
+*.iml
+*.ipr
+*.iws
+cmake-build-*/
+
+# Visual Studio
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+*.sdf
+*.opensdf
+*.vcxproj.*
+*.idb
+*.pdb
+*.ipch
+*.tlog/
+*.log
+*.vspscc
+*.vssscc
+.vscode/
+.vs/
+*.cache
+
+# Code::Blocks
+*.layout
+*.depend
+*.cbp
+*.cbp.*
+*.workspace
+
+# Xcode
+*.xcworkspace
+*.xcproj
+*.xcuserdatad
+*.xccheckout
+xcuserdata/
+profile
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# JetBrains Rider
+.idea/
+.idea/.idea.*
+.idea/assetWizard/
+.idea/compileStamps/
+.idea/externalDependencies.xml
+.idea/modules.xml
+.idea/vcs.xml
+.idea/workspace.xml
+*.swp
+*.bak
+*.tmp
+
+# Other
+*~
+.\#*
+*\#*
+.\_*~
+
+# Output directories
+/bin/
+/lib/
+/build/
+/dist/
