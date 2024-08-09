@@ -1,6 +1,7 @@
 #include <iostream>
 #include "libppm.h"
 #include <cstdint>
+#include <cmath>
 
 using namespace std;
 
@@ -39,17 +40,17 @@ struct image_t* S1_smoothen(struct image_t *input_image)
 			// for red
 			for (int k = 0; k < 9; k++)
 			{
-				image->image_pixels[i][j][0] += 1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][0]);
+				image->image_pixels[i][j][0] += uint8_t (1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][0]));
 			}
 			// for green
 			for (int k = 0; k < 9; k++)
 			{
-				image->image_pixels[i][j][1] += 1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][1]);
+				image->image_pixels[i][j][1] += uint8_t(1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][1]));
 			}
 			// for blue
 			for (int k = 0; k < 9; k++)
 			{
-				image->image_pixels[i][j][2] += 1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][2]);
+				image->image_pixels[i][j][2] += uint8_t(1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][2]));
 			}
 		}
 	}
@@ -61,16 +62,71 @@ struct image_t* S2_find_details(struct image_t *input_image, struct image_t *smo
 {
 	// TODO
 	//|input - smoothened|
+	//initialization
+	struct image_t* image = new struct image_t;
+	image->height = input_image->height;
+	image->width = input_image->width;
+	image->image_pixels = new uint8_t**[image->height];
+	for(int i = 0; i < image->height; i++)
+	{
+		image->image_pixels[i] = new uint8_t*[image->width];
+		for(int j = 0; j < image->width; j++)
+			image->image_pixels[i][j] = new uint8_t[3];
+	}
 
-	return 0;
+	//logic
+	for (int i = 0; i < input_image->height; ++i)
+	{
+		for (int j = 0; j < input_image->width; ++j)
+		{
+			for(int c=0;c<3;++c){
+				image->image_pixels[i][j][c] = abs(input_image->image_pixels[i][j][c] - smoothened_image->image_pixels[i][j][c]);		
+			}
+		}
+	}
+
+	return image;
+	//try
+	// for(int c=0;c<3;++c){
+	// 			if((input_image->image_pixels[i][j][c] - smoothened_image->image_pixels[i][j][c]) > 0){
+	// 				image->image_pixels[i][j][c] = abs(input_image->image_pixels[i][j][c] - smoothened_image->image_pixels[i][j][c]);		
+	// 			}
+	// 			else{
+	// 				image->image_pixels[i][j][c] = 0;
+	// 			}
+	// 		}	
 }
 
 struct image_t* S3_sharpen(struct image_t *input_image, struct image_t *details_image)
 {
 	// TODO
 	// input + details 
+	//initialization
+	struct image_t* image = new struct image_t;
+	image->height = input_image->height;
+	image->width = input_image->width;
+	image->image_pixels = new uint8_t**[image->height];
+	for(int i = 0; i < image->height; i++)
+	{
+		image->image_pixels[i] = new uint8_t*[image->width];
+		for(int j = 0; j < image->width; j++)
+			image->image_pixels[i][j] = new uint8_t[3];
+	}
 
-	return input_image; //TODO remove this line when adding your code
+	//logic
+	for (int i = 0; i < input_image->height; ++i){
+		for (int j = 0; j < input_image->width; ++j){
+			for(int c=0;c<3;++c){
+				if(input_image->image_pixels[i][j][c] + details_image->image_pixels[i][j][c] < 255)
+					image->image_pixels[i][j][c] = uint8_t(input_image->image_pixels[i][j][c] + details_image->image_pixels[i][j][c]);
+			else
+				image->image_pixels[i][j][c] = uint8_t(255);
+			}	
+		}
+	}
+
+
+	return image;
 }
 
 int main(int argc, char **argv)
@@ -89,7 +145,9 @@ int main(int argc, char **argv)
 	
 	struct image_t *sharpened_image = S3_sharpen(input_image, details_image);
 	
-	write_ppm_file(argv[2], smoothened_image);
+	//write_ppm_file(argv[2], smoothened_image);
+	
+	write_ppm_file(argv[2], sharpened_image);
 	
 	return 0;
 }
