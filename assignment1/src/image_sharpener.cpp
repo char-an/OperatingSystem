@@ -9,9 +9,6 @@ using namespace std;
 
 struct image_t *S1_smoothen(struct image_t *input_image)
 {
-	// TODO
-	// remember to allocate space for smoothened_image. See read_ppm_file() in libppm.c for some help.
-
 	// error handling for nullptr
 	if (input_image == nullptr)
 	{
@@ -35,11 +32,11 @@ struct image_t *S1_smoothen(struct image_t *input_image)
 	int delrow[] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
 	int delcol[] = {-1, -1, -1, 0, 0, 0, 1, 1, 1};
 
-	for (int i = 0; i < input_image->height; ++i)
+	for (int i=0;i<input_image->height;i++)
 	{
-		for (int j = 0; j < input_image->width; ++j)
+		for (int j=0;j<input_image->width;j++)
 		{
-			if (i == 0 || j == 0 || i == input_image->height - 1 || j == input_image->width - 1)
+			if (i==0 || j==0 || i==input_image->height - 1 || j ==input_image->width - 1)
 			{
 				image->image_pixels[i][j][0] = input_image->image_pixels[i][j][0];
 				image->image_pixels[i][j][1] = input_image->image_pixels[i][j][1];
@@ -69,8 +66,6 @@ struct image_t *S1_smoothen(struct image_t *input_image)
 
 struct image_t *S2_find_details(struct image_t *input_image, struct image_t *smoothened_image)
 {
-	// TODO
-
 	// error handling for nullptr
 	if (input_image == nullptr)
 	{
@@ -91,11 +86,11 @@ struct image_t *S2_find_details(struct image_t *input_image, struct image_t *smo
 	}
 
 	// logic
-	for (int i = 0; i < input_image->height; ++i)
+	for (int i=0;i<input_image->height;i++)
 	{
-		for (int j = 0; j < input_image->width; ++j)
+		for (int j=0; j <input_image->width;j++)
 		{
-			for (int c = 0; c < 3; ++c)
+			for (int c=0; c <3;c++)
 			{
 				image->image_pixels[i][j][c] = abs(input_image->image_pixels[i][j][c] - smoothened_image->image_pixels[i][j][c]);
 			}
@@ -107,8 +102,6 @@ struct image_t *S2_find_details(struct image_t *input_image, struct image_t *smo
 
 struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_image)
 {
-	// TODO
-
 	// error handling for nullptr
 	if (input_image == nullptr)
 	{
@@ -129,11 +122,11 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 	}
 
 	// logic
-	for (int i = 0; i < input_image->height; ++i)
+	for (int i =0; i <input_image->height; i++)
 	{
-		for (int j = 0; j < input_image->width; ++j)
+		for (int j =0; j <input_image->width; j++)
 		{
-			for (int c = 0; c < 3; ++c)
+			for (int c =0; c<3;c++)
 			{
 				if (input_image->image_pixels[i][j][c] + details_image->image_pixels[i][j][c] < 255)
 					image->image_pixels[i][j][c] = uint8_t(input_image->image_pixels[i][j][c] + details_image->image_pixels[i][j][c]);
