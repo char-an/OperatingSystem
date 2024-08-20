@@ -17,12 +17,11 @@ int printOccurrences(const string& file_to_search_in, const string& pattern_to_s
     int f=1;
     size_t found=txt.find(pattern_to_search_for);
     while(found != string::npos){
-    	cout << "found at" << found <<endl;
+    	cout << "found at " << found <<endl;
     	f=0;
     	found=txt.find(pattern_to_search_for,found+1);    
     }
-    
-    cout << "found "<<found<<"\n";
+
     if(f==1){
     	cout << "not found\n";
     }
