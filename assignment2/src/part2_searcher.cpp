@@ -21,36 +21,33 @@ int main(int argc, char **argv)
 	int search_start_position = atoi(argv[3]);
 	int search_end_position = atoi(argv[4]);
 
-	//TODO
 	int length_pattern = strlen(pattern_to_search_for);
 	// cout << "length of pattern :" << length_pattern << endl;
 
-    //file open
-	std::ifstream file(file_to_search_in); 
+	ifstream file(file_to_search_in); 
 
 	string file_string;
     char c; 
-	// loop getting single characters
     while (file.get(c)){
 		file_string += c;
 	}        
     
 	// cout << file_string;
-	// close file
     file.close();                
 
-
-
-	for (int i = search_start_position; i <= search_end_position; i++)
+	int f=0;
+	for (int i=search_start_position; i<=search_end_position; i++)
     {
         if (file_string.substr(i, length_pattern) == pattern_to_search_for)
         {
-            // cout << "[<" << pattern_to_search_for << ">]" << " found at " << "<" << i << ">" << endl;
-			// This line is not need in part2 
+            cout << "[" << getpid() << "]" << " found at "  << i << endl;
+			f=1;
             return 1;
         }
     }
 	
-	//cout << "[-1] didn't find\n";
-	return 0;
+	if(f==0){
+		cout << "[" << getpid() << "] " << "didn't find\n";
+		return 0;
+	}
 }

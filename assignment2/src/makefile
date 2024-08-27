@@ -1,25 +1,40 @@
-PART1_EXEC = part1_searcher.out
-PART2_PARTITIONER_EXEC = part2_partitioner.out
-PART2_SEARCHER_EXEC = part2_searcher.out
+build-part1: part1.out
 
-PART1_SOURCE = part1_searcher.cpp
-PART2_PARTITIONER_SOURCE = part2_partitioner.cpp
-PART2_SEARCHER_SOURCE = part2_searcher.cpp
+build-part2: part2_searcher.out part2_partitioner.out
 
-all: build-part1 build-part2
+build-part3: part3_searcher.out part3_partitioner.out
 
-build-part1:
-	$(CXX) $(CXXFLAGS) $(PART1_SOURCE) -o $(PART1_EXEC)
+part1.out: part1_searcher.cpp
+	g++ -g part1_searcher.cpp -o part1.out
 
-build-part2:
-	$(CXX) $(CXXFLAGS) $(PART2_PARTITIONER_SOURCE) -o $(PART2_PARTITIONER_EXEC)
-	$(CXX) $(CXXFLAGS) $(PART2_SEARCHER_SOURCE) -o $(PART2_SEARCHER_EXEC)
+part2_searcher.out: part2_searcher.cpp
+	g++ -g part2_searcher.cpp -o part2_searcher.out
 
-run-part1:
-	./$(PART1_EXEC) file.txt NGTNIJGK 0 67108863
+part2_partitioner.out: part2_partitioner.cpp
+	g++ -g part2_partitioner.cpp -o part2_partitioner.out
 
-run-part2:
-	./$(PART2_PARTITIONER_EXEC) file.txt NGTNIJGK 0 67108863 8388608
+part3_searcher.out: part3_searcher.cpp
+	g++ -g part3_searcher.cpp -o part3_searcher.out
 
-clean:
-	rm -f $(PART1_EXEC) $(PART2_PARTITIONER_EXEC) $(PART2_SEARCHER_EXEC)
+part3_partitioner.out: part3_partitioner.cpp
+	g++ -g part3_partitioner.cpp -o part3_partitioner.out
+
+run-part1: part1.out
+	@./part1.out file.txt NGTNIJGK 0 67108863 || true
+
+run-part2: part2_searcher.out part2_partitioner.out
+	./part2_partitioner.out file.txt NGTNIJGK 0 67108863 8388608
+
+run-part3: part3_searcher.out part3_partitioner.out
+	./part3_partitioner.out file.txt NGTNIJGK 0 67108863 8388608
+
+clean-part1:
+	rm -f part1.out
+
+clean-part2:
+	rm -f part2_searcher.out part2_partitioner.out
+
+clean-part3:
+	rm -f part3_searcher.out part3_partitioner.out
+
+clean: clean-part1 clean-part2 clean-part3
