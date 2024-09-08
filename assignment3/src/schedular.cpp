@@ -102,9 +102,9 @@ public:
 
             for(int i=0; i< p.bursts.size() - 1; i++){
                 if(i%2 == 0){
-                    cout << "cpu happens for " << p.bursts[i] << endl;
+                    cout << "cpu burst happens for " << p.bursts[i] << endl;
                 }else{
-                    cout << "i/o happens for " << p.bursts[i] << endl;
+                    cout << "i/o burst happens for " << p.bursts[i] << endl;
                 }
             }
             readyQueue.pop();
