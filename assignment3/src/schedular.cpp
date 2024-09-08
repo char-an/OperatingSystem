@@ -1,12 +1,13 @@
 #include<iostream>
-#include<fstream>
-#include<sstream>
+#include<fstream> // for file reading
+#include<sstream>  // for using iss
 #include<vector>
+#include<queue>
 using namespace std;
 
 class Process{
     public:
-        int processNumber;
+        int processNumber;  
         int arrivalTime;
         vector<int> bursts;
 
@@ -17,37 +18,54 @@ class Process{
         }
 };
 
+queue<Process> readyQueue; 
+queue<Process> waitingQueue;
 
-void addprocess(int processNumber, int arrivalTime, vector<int>& bursts, vector<Process> processList){
-    Process p(processNumber, arrivalTime, bursts);
-    processList.push_back(p);
-    cout << "Added process " << processNumber << " to the processList at arrival time " << arrivalTime << endl;
-}
+class Schedular{
+    public:
 
-int main(int argc, char **argv){
-    char *process_info_file = argv[1];
-    ifstream file(process_info_file);
-    string burst_info; // string containing info of arrival time , <cpu_burst>, <i/o_burst> ....
+        void addprocess(int processNumber, int arrivalTime, vector<int>& bursts, vector<Process> processList){
+            Process p(processNumber, arrivalTime, bursts);
+            processList.push_back(p); 
+            readyQueue.push(p); // when new process arrives is pushed into ready queue
+            cout << "Added process " << processNumber << " to the processList at arrival time " << arrivalTime << endl;
+        }
 
-    int processNumber = 1; // numbering of process starts with 1
-    vector<Process> processList; // list of processes
+        void load_info_from_file(string &filename){
+            ifstream file(filename);
+            string burst_info; // string containing info of arrival time , <cpu_burst>, <i/o_burst> ....
 
-    while(getline(file, burst_info)){
-        if(!burst_info.empty() && burst_info[0] != '<'){
-            istringstream iss(burst_info);
+            int processNumber = 1; // numbering of process starts with 1
+            vector<Process> processList; // list of processes
 
-            int arrivalTime;
-            iss >> arrivalTime; // first arg is arrival time 
+            while(getline(file, burst_info)){
+                if(!burst_info.empty() && burst_info[0] != '<'){
+                    istringstream iss(burst_info);
 
-            vector<int> bursts; // vector containing info of <cpu_burst>, <i/o_burst> ....
-            int burst;
-            while(iss >> burst){
-                bursts.push_back(burst);
+                    int arrivalTime;
+                    iss >> arrivalTime; // first arg is arrival time 
+
+                    vector<int> bursts; // vector containing info of <cpu_burst>, <i/o_burst> ....
+                    int burst;
+                    while(iss >> burst){
+                        bursts.push_back(burst);
+                    }
+
+                    addprocess(processNumber, arrivalTime, bursts, processList);
+                    processNumber++;
+                }
             }
 
-            addprocess(processNumber, arrivalTime, bursts, processList);
-            processNumber++;
+            file.close();  // close file once every process is pushed into ready queue for first time 
         }
-    }
+
+};
+
+
+int main(int argc, char **argv) {
+    string process_info_file = argv[1];
+    Schedular s;
+    s.load_info_from_file(process_info_file);
+
     return 0;
 }
