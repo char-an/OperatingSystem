@@ -9,7 +9,6 @@
 #include <sys/types.h>
 
 using namespace std;
-
 void handler(int signo, siginfo_t *info, void *context)
 {
     if (signo == SIGTERM)
@@ -26,7 +25,6 @@ void searchPattern(char *fileName, char *pattern, int start, int end) {
         exit(1);
     } else if (pid == 0) {
         // Child process code
-        //printf("Child Process: PID = %d, PGID = %d\n", getpid(), getpgrp());
         char *start_as_Str = new char[to_string(start).length() + 1];
         strcpy(start_as_Str, to_string(start).c_str());
 

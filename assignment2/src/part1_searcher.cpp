@@ -22,7 +22,6 @@ int main(int argc, char **argv)
 	int search_end_position = atoi(argv[4]);
 
 	int length_pattern = strlen(pattern_to_search_for);
-	// cout << "length of pattern :" << length_pattern << endl;
 
 	ifstream file(file_to_search_in); 
 
