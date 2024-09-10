@@ -12,12 +12,14 @@ public:
     int arrivalTime;
     vector<int> bursts;
     int remainingTime;
-
+    int burstIdx;
+    int waitingTime; // time when process is added to waiting queue 
     Process(int processNumber, int arrivalTime, vector<int>& bursts) {
         this->processNumber = processNumber;
         this->arrivalTime = arrivalTime;
         this->bursts = bursts;
-        this->remainingTime = bursts[0];
+        this->burstIdx = 0;
+        this->remainingTime = bursts[this->burstIdx];
     }
 
     int getArrivaltime() {
@@ -28,9 +30,28 @@ public:
         return this->processNumber;
     }
 
-    void decreaseRemainingTime(){
-        this->remainingTime--;
+    int getRemainingTime(){
+        return this->remainingTime;
     }
+
+    int getWaitingTime(){
+        return this->remainingTime;
+    }
+
+    void setWaitingTime(int currTime){
+        this->waitingTime = currTime;
+    }
+    void burstChange(){
+        this->burstIdx++;
+        this->remainingTime = bursts[this->burstIdx];
+    }
+
+    bool isterminated(){
+        if(burstIdx >= bursts.size() - 1){
+            return true;
+        }
+    }
+
 };
 
 class CPU{
@@ -61,6 +82,7 @@ public:
         time++;
     }
 };
+
 
 queue<Process> readyQueue; 
 queue<Process> waitingQueue;
@@ -107,9 +129,22 @@ public:
         }
     }
 
-    void FCFS(){
+    void removeProcessFromWaitingQueue(queue<Process>& q, Process p) {
+        queue<Process> temp;
+        while (!q.empty()) {
+            if (q.front().getProcessNumber() != p.getProcessNumber()) {
+                temp.push(q.front());
+            }
+            q.pop();  
+        }
+        q = temp;
+    }
+
+    void FIFO(){
         int currTime = 0;
         int runningProcessIndex = -1;
+        // int waitingProcessIndex = -1;
+        bool finished_All = true;
         while(true){
             // first check is there any process is ProcessList that arrives at current time
             // if currTime = 0 and some process's arrival time is also 0, then we add that process in readyQueue
@@ -128,18 +163,40 @@ public:
                 runningProcessIndex = p.getProcessNumber();
             }
 
-            // third if there is running process, decrease its remaining(cpu burst) time by 1
+            // third now process the running process
             if(runningProcessIndex != -1){
                 Process& runningProcess = getProcessByProcessNumber(runningProcessIndex); 
-                runningProcess.decreaseRemainingTime();  // decrease remainimg time of the the process
-
-                if(runningProcess.remainingTime == 0){
-                    // cpu burst is over, so add process to waiting queue for i/o bursts
-                    cout << "Time " << currTime << ": Process " << runningProcess.getProcessNumber() << " arrives in waiting queue.\n";
-                    waitingQueue.push(runningProcess);  
-                    runningProcessIndex = -1;  
+                if(currTime == runningProcess.getRemainingTime()){
+                    cout << "CPU burst of process " << runningProcess.getProcessNumber() << " is over at time :" << currTime << endl;
+                    waitingQueue.push(runningProcess);
+                    runningProcess.setWaitingTime(currTime);
+                    runningProcess.burstChange();
+                    runningProcessIndex = -1;
                 }
             }
+
+            if(!waitingQueue.empty()){
+                queue<Process> waitingQueue_copy = waitingQueue;
+                while(!waitingQueue_copy.empty()){
+                    Process p = waitingQueue_copy.front();
+                    waitingQueue_copy.pop();
+                    if(p.remainingTime == currTime - p.getWaitingTime()){
+                        removeProcessFromWaitingQueue(waitingQueue, p);
+                        cout << "Time " << currTime << ": Process " << p.getProcessNumber() << " popped from waiting queue and pushed to ready queue.\n";
+                        readyQueue.push(p);
+                    }
+                }
+            }
+
+
+            for(Process& p : processList){
+                if(!p.isterminated()){
+                    finished_All = false;
+                }
+            }
+
+            if(finished_All)
+                break;
 
             currTime++;
         }
@@ -164,6 +221,6 @@ int main(int argc, char** argv) {
     string process_info_file = argv[1];
     Schedular s;
     s.load_info_from_file(process_info_file);
-    s.FCFS();
+    s.FIFO();
     return 0;
 }
