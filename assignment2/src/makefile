@@ -23,7 +23,7 @@ run-part1: part1.out
 	@./part1.out file.txt NGTNIJGK 0 67108863 || true
 
 run-part2: part2_searcher.out part2_partitioner.out
-	./part2_partitioner.out file.txt NGTNIJGK 0 67108863 8388608
+	./part2_partitioner.out file.txt OAD 0 67108863 8388608
 
 run-part3: part3_searcher.out part3_partitioner.out
 	./part3_partitioner.out file.txt NGTNIJGK 0 67108863 8388608
