@@ -35,7 +35,7 @@ public:
     }
 
     int getWaitingTime(){
-        return this->remainingTime;
+        return this->waitingTime;
     }
 
     void setWaitingTime(int currTime){
@@ -47,11 +47,8 @@ public:
     }
 
     bool isterminated(){
-        if(burstIdx >= bursts.size() - 1){
-            return true;
-        }
+        return burstIdx >= bursts.size() - 1;
     }
-
 };
 
 class CPU{
@@ -129,16 +126,16 @@ public:
         }
     }
 
-    void removeProcessFromWaitingQueue(queue<Process>& q, Process p) {
-        queue<Process> temp;
-        while (!q.empty()) {
-            if (q.front().getProcessNumber() != p.getProcessNumber()) {
-                temp.push(q.front());
-            }
-            q.pop();  
-        }
-        q = temp;
-    }
+    // void removeProcessFromWaitingQueue(queue<Process>& q, Process p) {
+    //     queue<Process> temp;
+    //     while (!q.empty()) {
+    //         if (q.front().getProcessNumber() != p.getProcessNumber()) {
+    //             temp.push(q.front());
+    //         }
+    //         q.pop();  
+    //     }
+    //     q = temp;
+    // }
 
     void FIFO(){
         int currTime = 0;
@@ -146,6 +143,8 @@ public:
         // int waitingProcessIndex = -1;
         bool finished_All = true;
         while(true){
+            finished_All = true; 
+
             // first check is there any process is ProcessList that arrives at current time
             // if currTime = 0 and some process's arrival time is also 0, then we add that process in readyQueue
             for(Process& p : processList){
@@ -175,18 +174,34 @@ public:
                 }
             }
 
+            // if(!waitingQueue.empty()){
+            //     queue<Process> waitingQueue_copy = waitingQueue;
+            //     while(!waitingQueue_copy.empty()){
+            //         Process p = waitingQueue_copy.front();
+            //         waitingQueue_copy.pop();
+            //         if(p.remainingTime == currTime - p.getWaitingTime()){
+            //             removeProcessFromWaitingQueue(waitingQueue, p);
+            //             cout << "Time " << currTime << ": Process " << p.getProcessNumber() << " popped from waiting queue and pushed to ready queue.\n";
+            //             readyQueue.push(p);
+            //         }
+            //     }
+            // }
+
             if(!waitingQueue.empty()){
-                queue<Process> waitingQueue_copy = waitingQueue;
-                while(!waitingQueue_copy.empty()){
-                    Process p = waitingQueue_copy.front();
-                    waitingQueue_copy.pop();
+                queue<Process> temp;  
+                while(!waitingQueue.empty()){
+                    Process p = waitingQueue.front();
+                    waitingQueue.pop();
                     if(p.remainingTime == currTime - p.getWaitingTime()){
-                        removeProcessFromWaitingQueue(waitingQueue, p);
                         cout << "Time " << currTime << ": Process " << p.getProcessNumber() << " popped from waiting queue and pushed to ready queue.\n";
                         readyQueue.push(p);
+                    } else {
+                        temp.push(p);  
                     }
                 }
+                waitingQueue = temp;  
             }
+
 
 
             for(Process& p : processList){
@@ -195,9 +210,9 @@ public:
                 }
             }
 
-            if(finished_All)
+            if(finished_All){
                 break;
-
+            }
             currTime++;
         }
     }
