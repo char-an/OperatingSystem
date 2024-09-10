@@ -11,11 +11,13 @@ public:
     int processNumber;  
     int arrivalTime;
     vector<int> bursts;
+    int remainingTime;
 
     Process(int processNumber, int arrivalTime, vector<int>& bursts) {
         this->processNumber = processNumber;
         this->arrivalTime = arrivalTime;
         this->bursts = bursts;
+        this->remainingTime = bursts[0];
     }
 
     int getArrivaltime() {
@@ -24,6 +26,10 @@ public:
 
     int getProcessNumber() {
         return this->processNumber;
+    }
+
+    void decreaseRemainingTime(){
+        this->remainingTime--;
     }
 };
 
@@ -42,8 +48,18 @@ public:
     void set_cpu_avail(bool val){
         this->isCPU_Available = val;
     }
+};
 
+class Timer{
+public:
+    int time;
 
+    Timer(){
+        this->time = 0;
+    }
+    void start(){
+        time++;
+    }
 };
 
 queue<Process> readyQueue; 
@@ -83,32 +99,62 @@ public:
         file.close();  // close file once every process is pushed into ready queue for first time
     }
 
-    void addToReadyQueue(){
-        // lambda function to sort processList on basis of Arrivaltime of process
-        sort(processList.begin(), processList.end(), [](Process &a, Process &b){
-            return a.getArrivaltime() < b.getArrivaltime();
-        });
-
-        for(Process p : processList){
-            readyQueue.push(p);
+    Process& getProcessByProcessNumber(int ProcessNumber){
+        for(Process& p : processList){
+            if(p.getProcessNumber() == ProcessNumber){
+                return p;
+            }
         }
     }
 
     void FCFS(){
-        while(!readyQueue.empty()){
-            cout << "Number of process in scheduler " << readyQueue.size() << endl;
-            Process p = readyQueue.front();
-            cout << "Process to be run in CPU " << p.getProcessNumber() << endl;
-
-            for(int i=0; i< p.bursts.size() - 1; i++){
-                if(i%2 == 0){
-                    cout << "cpu burst happens for " << p.bursts[i] << endl;
-                }else{
-                    cout << "i/o burst happens for " << p.bursts[i] << endl;
+        int currTime = 0;
+        int runningProcessIndex = -1;
+        while(true){
+            // first check is there any process is ProcessList that arrives at current time
+            // if currTime = 0 and some process's arrival time is also 0, then we add that process in readyQueue
+            for(Process& p : processList){
+                if(p.getArrivaltime() == currTime){
+                    cout << "Time " << currTime << ": Process " << p.getProcessNumber() << " arrives in ready queue.\n";
+                    readyQueue.push(p);  // Process is added to the ready queue
                 }
             }
-            readyQueue.pop();
+
+            // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
+            if(runningProcessIndex == -1 && !readyQueue.empty()){
+                Process p = readyQueue.front();
+                readyQueue.pop();
+                cout << "Time " << currTime << ": Process " << p.getProcessNumber() << " gets removed from ready queue and is now in running state.\n";
+                runningProcessIndex = p.getProcessNumber();
+            }
+
+            // third if there is running process, decrease its remaining(cpu burst) time by 1
+            if(runningProcessIndex != -1){
+                Process& runningProcess = getProcessByProcessNumber(runningProcessIndex); 
+                runningProcess.decreaseRemainingTime();  // decrease remainimg time of the the process
+
+                if(runningProcess.remainingTime == 0){
+                    // cpu burst is over, so add process to waiting queue for i/o bursts
+                    cout << "Time " << currTime << ": Process " << runningProcess.getProcessNumber() << " arrives in waiting queue.\n";
+                    waitingQueue.push(runningProcess);  
+                    runningProcessIndex = -1;  
+                }
+            }
+
+            currTime++;
         }
+    }
+
+    void SJF(){
+
+    }
+
+    void STRF(){
+
+    }
+
+    void RR(){
+        
     }
 };
 
@@ -118,7 +164,6 @@ int main(int argc, char** argv) {
     string process_info_file = argv[1];
     Schedular s;
     s.load_info_from_file(process_info_file);
-    s.addToReadyQueue();
     s.FCFS();
     return 0;
 }
