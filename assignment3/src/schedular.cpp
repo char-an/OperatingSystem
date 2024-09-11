@@ -14,7 +14,7 @@ public:
     int remainingTime;
     int burstIdx;
     int waitingTime; // time when process is added to waiting queue
-    int runningTime; // time when process actually starts running on cpu 
+    int runningTime; // time when process actually starts running on cpu
     Process(int processNumber, int arrivalTime, vector<int>& bursts) {
         this->processNumber = processNumber;
         this->arrivalTime = arrivalTime;
@@ -60,7 +60,7 @@ public:
 
     bool isterminated(){
         if(this->remainingTime == -1){
-    	       cout << "All cpu and i/o bursts are over" << endl;
+//    	       cout << "All cpu and i/o bursts are over" << " of process :" << this->processNumber << endl;
     	       return true;
     	 }
     	return false;
@@ -118,7 +118,7 @@ public:
         int runningProcessIndex = -1;
         // int waitingProcessIndex = -1;
         bool finished_All = true;
-        while(currTime < 200){
+        while(true){
             finished_All = true;
             // first check is there any process is ProcessList that arrives at current time
             // if currTime = 0 and some process's arrival time is also 0, then we add that process in readyQueue
@@ -132,14 +132,15 @@ public:
             if (!waitingQueue.empty()) {
                 queue<Process*> temp;
                 while (!waitingQueue.empty()) {
-                    Process* p = waitingQueue.front();  
+                    Process* p = waitingQueue.front();
                     waitingQueue.pop();
                     if (currTime - p->getWaitingTime() >= p->getRemainingTime()) {
                         cout << "Time " << currTime << ": Process " << p->getProcessNumber() << " popped from waiting queue and pushed to ready queue.\n";
                         p->burstChange();
-                        readyQueue.push(p);  
+                        if(!p->isterminated())
+                        	readyQueue.push(p);
                     } else {
-                        temp.push(p);  
+                        temp.push(p);
                     }
                 }
                 waitingQueue = temp;
@@ -148,14 +149,14 @@ public:
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
             if (runningProcessIndex == -1 && !readyQueue.empty()) {
-                Process* p = readyQueue.front();  
-                readyQueue.pop();                 
-                p->setRunningTime(currTime);     
+                Process* p = readyQueue.front();
+                readyQueue.pop();
+                p->setRunningTime(currTime);
                 cout << "Time " << currTime << ": Process " << p->getProcessNumber() << " gets removed from ready queue and is now in running state.\n";
                 runningProcessIndex = p->getProcessNumber();  // Update the running process
             }
 
-            
+
 
             // third now process the running process
             if(runningProcessIndex != -1){
@@ -165,12 +166,13 @@ public:
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex = -1;
-                    waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
 
             }
 
-            
+
             for(Process& p : processList){
                 if(!p.isterminated()){
                     finished_All = false;
