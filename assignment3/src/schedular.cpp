@@ -22,6 +22,7 @@ public:
         this->burstIdx = 0;
         this->remainingTime = bursts[this->burstIdx];
         this->waitingTime = 0;
+        this->runningTime = 0;
     }
 
     int getArrivaltime() {
@@ -58,7 +59,11 @@ public:
     }
 
     bool isterminated(){
-        return burstIdx >= bursts.size() - 1;
+        if(this->remainingTime == -1){
+    	       cout << "All cpu and i/o bursts are over" << endl;
+    	       return true;
+    	 }
+    	return false;
     }
 };
 
@@ -113,7 +118,7 @@ public:
         int runningProcessIndex = -1;
         // int waitingProcessIndex = -1;
         bool finished_All = true;
-        while(true){
+        while(currTime < 200){
             finished_All = true;
             // first check is there any process is ProcessList that arrives at current time
             // if currTime = 0 and some process's arrival time is also 0, then we add that process in readyQueue
@@ -142,7 +147,7 @@ public:
 
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (!readyQueue.empty()) {
+            if (runningProcessIndex == -1 && !readyQueue.empty()) {
                 Process* p = readyQueue.front();  
                 readyQueue.pop();                 
                 p->setRunningTime(currTime);     
