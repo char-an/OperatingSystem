@@ -60,15 +60,22 @@ public:
 
     bool isterminated(){
         if(this->remainingTime == -1){
-//    	       cout << "All cpu and i/o bursts are over" << " of process :" << this->processNumber << endl;
     	       return true;
     	 }
     	return false;
     }
 };
 
+struct Comp {
+    bool operator()(const Process* a, const Process* b) {
+        return a->remainingTime > b->remainingTime;
+    }
+};
+
+
 queue<Process*> readyQueue;
 queue<Process*> waitingQueue;
+priority_queue<Process*, std::vector<Process*>, Comp> pq;
 
 class Schedular {
 public:
@@ -116,7 +123,6 @@ public:
     void FIFO(){
         int currTime = 0;
         int runningProcessIndex = -1;
-        // int waitingProcessIndex = -1;
         bool finished_All = true;
         while(true){
             finished_All = true;
@@ -187,7 +193,75 @@ public:
     }
 
     void SJF(){
+        int currTime = 0;
+        int runningProcessIndex = -1;
+        bool finished_All = true;
+        while(true){
+            finished_All = true;
+            // first check is there any process is ProcessList that arrives at current time
+            // if currTime = 0 and some process's arrival time is also 0, then we add that process in Priority Queue
+            for(Process& p : processList){
+                if(p.getArrivaltime() == currTime){
+                    cout << "Time " << currTime << ": Process " << p.getProcessNumber() << " arrives in ready queue.\n";
+                    pq.push(&p);  // Process is added to the ready queue
+                }
+            }
 
+            if (!waitingQueue.empty()) {
+                queue<Process*> temp;
+                while (!waitingQueue.empty()) {
+                    Process* p = waitingQueue.front();
+                    waitingQueue.pop();
+                    if (currTime - p->getWaitingTime() >= p->getRemainingTime()) {
+                        cout << "Time " << currTime << ": Process " << p->getProcessNumber() << " popped from waiting queue and pushed to ready queue.\n";
+                        p->burstChange();
+                        if(!p->isterminated())
+                        	pq.push(p);
+                    } else {
+                        temp.push(p);
+                    }
+                }
+                waitingQueue = temp;
+            }
+
+
+            // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
+            if (runningProcessIndex == -1 && !pq.empty()) {
+                Process* p = pq.top();
+                pq.pop();
+                p->setRunningTime(currTime);
+                cout << "Time " << currTime << ": Process " << p->getProcessNumber() << " gets removed from ready queue and is now in running state.\n";
+                runningProcessIndex = p->getProcessNumber();  // Update the running process
+            }
+
+
+
+            // third now process the running process
+            if(runningProcessIndex != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+                if (currTime - runningProcess->getRunningTime() == runningProcess->getRemainingTime()) {
+                    cout << "CPU burst of process " << runningProcess->getProcessNumber() << " is over at time: " << currTime << endl;
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex = -1;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+
+            }
+
+
+            for(Process& p : processList){
+                if(!p.isterminated()){
+                    finished_All = false;
+                }
+            }
+
+            if(finished_All){
+                break;
+            }
+            currTime++;
+        }
     }
 
     void STRF(){
@@ -205,6 +279,7 @@ int main(int argc, char** argv) {
     string process_info_file = argv[1];
     Schedular s;
     s.load_info_from_file(process_info_file);
-    s.FIFO();
+    // s.FIFO();
+    s.SJF();
     return 0;
 }
