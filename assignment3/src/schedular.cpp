@@ -15,7 +15,7 @@ public:
     int burstIdx;
     int waitingTime; // time when process is added to waiting queue
     int runningTime; // time when process actually starts running on cpu
-    int cpuAllocated;
+    //int cpuAllocated;
     Process(int processNumber, int arrivalTime, vector<int>& bursts) {
         this->processNumber = processNumber;
         this->arrivalTime = arrivalTime;
@@ -24,15 +24,15 @@ public:
         this->remainingTime = bursts[this->burstIdx];
         this->waitingTime = 0;
         this->runningTime = 0;
-        this->cpuAllocated = 1;
+        //this->cpuAllocated = 1;
     }
 
     int getArrivaltime() {
         return this->arrivalTime;
     }
 
-    int getCPUAllocated(){
-        return this->cpuAllocated;
+    int getCPUBurstNo(){
+        return ((this->burstIdx)/2 + 1);
     }
 
     int getProcessNumber() {
@@ -146,7 +146,7 @@ public:
                 while (!waitingQueue.empty()) {
                     Process* p = waitingQueue.front();
                     waitingQueue.pop();
-                    if (currTime - p->getWaitingTime() >= p->getRemainingTime()) {
+                    if (currTime - p->getWaitingTime()>= p->getRemainingTime()) {
                         p->burstChange();
                         if(!p->isterminated())
                         	readyQueue.push(p);
@@ -168,10 +168,12 @@ public:
             // third now process the running process
             if(runningProcessIndex != -1){
                 Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
-                if (currTime - runningProcess->getRunningTime() == runningProcess->getRemainingTime()) {
+                runningProcess->remainingTime--;
+                if (runningProcess->getRemainingTime()==0) {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUAllocated() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    //TODO: after comma it should be ith cpu burst of the process
+                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     runningProcessIndex = -1;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
@@ -210,7 +212,7 @@ public:
                 while (!waitingQueue.empty()) {
                     Process* p = waitingQueue.front();
                     waitingQueue.pop();
-                    if (currTime - p->getWaitingTime() >= p->getRemainingTime()) {
+                    if (currTime - p->getWaitingTime()== p->getRemainingTime()) {
                         p->burstChange();
                         if(!p->isterminated())
                         	pq.push(p);
@@ -232,11 +234,13 @@ public:
             // third now process the running process
             if(runningProcessIndex != -1){
                 Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
-                if (currTime - runningProcess->getRunningTime() == runningProcess->getRemainingTime()) {
+                runningProcess->remainingTime--;
+                if (runningProcess->getRemainingTime() == 0) {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex = -1;
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUAllocated() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    //TODO: same as for fifo
+                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
@@ -257,8 +261,93 @@ public:
     }
 
     void STRF(){
+        int currTime = 0;
+        int runningProcessIndex = -1;
+        bool finished_All = true;
 
+        while(true){
+            finished_All = true;
+            bool preemt = false;
+            // first check is there any process is ProcessList that arrives at current time
+            for(Process& p : processList){
+                if(p.getArrivaltime() == currTime){
+                    pq.push(&p); 
+                    preemt = true;
+                }
+            }
+
+            if (!waitingQueue.empty()) {
+                queue<Process*> temp;
+                while (!waitingQueue.empty()) {
+                    Process* p = waitingQueue.front();
+                    waitingQueue.pop();
+                    if (currTime - p->getWaitingTime() == p->getRemainingTime() +1) {
+                        p->burstChange();
+                        if(!p->isterminated())
+                        	pq.push(p);
+                            preemt = true;
+                    } else {
+                        temp.push(p);
+                    }
+                }
+                waitingQueue = temp;
+            }
+
+            // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
+            if (runningProcessIndex == -1 && !pq.empty()) {
+                Process* p = pq.top();
+                pq.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex = p->getProcessNumber();  // Update the running process
+            }
+
+            // third now process the running process
+            if(runningProcessIndex != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+
+                if(preemt && runningProcessIndex != -1 && !pq.empty()){
+                    Process* topProcess = pq.top();
+                    if (topProcess->getRemainingTime() < runningProcess->getRemainingTime()){
+                        //put current process back to pq
+                        cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime-1 << endl;
+                        pq.push(runningProcess);
+                        runningProcess = pq.top();
+                        pq.pop();
+                        runningProcess->setRunningTime(currTime);
+                        runningProcessIndex = runningProcess->getProcessNumber();
+                    }
+         
+                }
+
+                runningProcess->remainingTime--;
+
+                if(runningProcess->remainingTime == 0){
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex = -1;
+                    //TODO: same as for fifo
+                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+                
+                // runningProcess->remainingTime--;
+            }
+
+            for(Process& p : processList){
+                if(!p.isterminated()){
+                    finished_All = false;
+                }
+            }
+
+            if(finished_All){
+                break;  // if cpu and i/o burst of all processes are completed then we break from while loop 
+            }
+
+            currTime++;
+        }
     }
+    
 
     void RR(){
 
@@ -267,14 +356,28 @@ public:
 
 
 
+
+
 int main(int argc, char** argv) {
-    string process_info_file = argv[1];
+
+    if(argc < 3){
+        cout << "please enter correct number of arguments" << endl;
+        return 1;
+    }
+
+    string process_info_file = argv[2];
+    string algorithm = argv[1]; 
     Schedular s;
     s.load_info_from_file(process_info_file);
-    #ifndef FIFO
+    
+    if(algorithm=="FIFO")
         s.FIFO();
-    #else
+    else if(algorithm=="SJF")
         s.SJF();
-    #endif
+    else if(algorithm=="SRTF")
+        s.STRF();
+    else if(algorithm=="RR")
+        s.RR();
+
     return 0;
 }
