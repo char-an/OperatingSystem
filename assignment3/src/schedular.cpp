@@ -15,7 +15,7 @@ public:
     int burstIdx;
     int waitingTime; // time when process is added to waiting queue
     int runningTime; // time when process actually starts running on cpu
-    //int cpuAllocated;
+    int timeSlice;
     Process(int processNumber, int arrivalTime, vector<int>& bursts) {
         this->processNumber = processNumber;
         this->arrivalTime = arrivalTime;
@@ -24,6 +24,7 @@ public:
         this->remainingTime = bursts[this->burstIdx];
         this->waitingTime = 0;
         this->runningTime = 0;
+        this->timeSlice = 0;
         //this->cpuAllocated = 1;
     }
 
@@ -62,6 +63,10 @@ public:
     void burstChange(){
         this->burstIdx = this->burstIdx + 1;
         this->remainingTime = bursts[this->burstIdx];
+    }
+
+    void setTimeSlice(int n){
+        this->timeSlice = n;
     }
 
     bool isterminated(){
@@ -350,12 +355,85 @@ public:
     
 
     void RR(){
+        int timeQuantum = 50;
+        int currTime = 0;
+        int runningProcessIndex = -1;
+        bool finished_All = true;
 
+        while(true){
+            finished_All = true;
+            // first check is there any process is ProcessList that arrives at current time
+            for(Process& p : processList){
+                if(p.getArrivaltime() == currTime){
+                    readyQueue.push(&p); 
+                }
+            }
+
+            if (!waitingQueue.empty()) {
+                queue<Process*> temp;
+                while (!waitingQueue.empty()) {
+                    Process* p = waitingQueue.front();
+                    waitingQueue.pop();
+                    if (currTime - p->getWaitingTime() == p->getRemainingTime() +1) {
+                        p->burstChange();
+                        if(!p->isterminated())
+                        	readyQueue.push(p);
+                    } else {
+                        temp.push(p);
+                    }
+                }
+                waitingQueue = temp;
+            }
+
+            // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
+            if (runningProcessIndex == -1 && !readyQueue.empty()) {
+                Process* p = readyQueue.front();
+                readyQueue.pop();
+                p->setRunningTime(currTime);
+                p->setTimeSlice(timeQuantum);
+                runningProcessIndex = p->getProcessNumber();  // Update the running process
+            }
+
+            // third now process the running process
+            if(runningProcessIndex != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+
+                runningProcess->remainingTime--;
+                runningProcess->timeSlice--;
+
+                if(runningProcess->remainingTime == 0){
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex = -1;
+                    //TODO: same as for fifo
+                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+                else if(runningProcess->timeSlice == 0 && !readyQueue.empty()){
+                        //put current process back to readyQueue
+                        cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                        readyQueue.push(runningProcess);
+                        runningProcessIndex = -1;
+                }
+
+                // runningProcess->remainingTime--;
+            }
+
+            for(Process& p : processList){
+                if(!p.isterminated()){
+                    finished_All = false;
+                }
+            }
+
+            if(finished_All){
+                break;  // if cpu and i/o burst of all processes are completed then we break from while loop 
+            }
+
+            currTime++;
+        }
     }
 };
-
-
-
 
 
 int main(int argc, char** argv) {
