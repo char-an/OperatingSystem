@@ -64,6 +64,10 @@ public:
         this->remainingTime = bursts[this->burstIdx];
     }
 
+    void setRemainingTime(){
+        this->remainingTime--;
+    }
+
     bool isterminated(){
         if(this->remainingTime == -1){
     	       return true;
@@ -168,10 +172,11 @@ public:
             // third now process the running process
             if(runningProcessIndex != -1){
                 Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
-                if (currTime - runningProcess->getRunningTime() == runningProcess->getRemainingTime()) {
+                runningProcess->setRemainingTime(); // decrease remaining time of cpu burst by 1
+                if (runningProcess->getRemainingTime() == 0) {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUAllocated() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->burstIdx << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     runningProcessIndex = -1;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
@@ -232,11 +237,12 @@ public:
             // third now process the running process
             if(runningProcessIndex != -1){
                 Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
-                if (currTime - runningProcess->getRunningTime() == runningProcess->getRemainingTime()) {
+                runningProcess->setRemainingTime(); // decrease remaining time of cpu burst by 1
+                if (runningProcess->getRemainingTime() == 0) {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex = -1;
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUAllocated() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->burstIdx << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
