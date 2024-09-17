@@ -1,15 +1,20 @@
 all: build
 
-build: src/schedular.cpp
-	g++ -O3 src/schedular.cpp -o bin/fifo_schedular.out
-	g++ -O3 src/schedular.cpp -o bin/sjf_schedular.out
-    
-run: 
-	./bin/fifo_schedular.out process1.dat -DFIFO
-	./bin/fifo_schedular.out process2.dat -DFIFO
-	./bin/fifo_schedular.out process3.dat -DFIFO
-	./bin/sjf_schedular.out process1.dat 
-	./bin/sjf_schedular.out process2.dat
-	./bin/sjf_schedular.out process3.dat
+build:
+	g++ schedular.cpp -o schedular.out
+
+run:
+	./schedular.out FIFO process1.dat
+	./schedular.out SJF process1.dat
+	./schedular.out SRTF process1.dat
+	./schedular.out RR process1.dat
+	./schedular.out FIFO process2.dat
+	./schedular.out SJF process2.dat
+	./schedular.out SRTF process2.dat
+	./schedular.out RR process2.dat	
+	./schedular.out FIFO process3.dat
+	./schedular.out SJF process3.dat
+	./schedular.out SRTF process3.dat
+	./schedular.out RR process3.dat
 
 
