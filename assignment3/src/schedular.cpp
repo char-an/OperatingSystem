@@ -133,9 +133,13 @@ public:
 
     void FIFO(){
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+        #ifdef TWO
+        int runningProcessIndex1 = -1;
+        #endif
+
         bool finished_All = true;
-        cout << "CPU0" << endl;
+        //cout << "CPU0" << endl;
         while(true){
             finished_All = true;
             // first check is there any process is ProcessList that arrives at current time
@@ -163,27 +167,50 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !readyQueue.empty()) {
+            if (runningProcessIndex0 == -1 && !readyQueue.empty()) {
                 Process* p = readyQueue.front();
                 readyQueue.pop();
                 p->setRunningTime(currTime);
-                runningProcessIndex = p->getProcessNumber();  // Update the running process
+                runningProcessIndex0 = p->getProcessNumber();  // Update the running process
             }
+            #ifdef TWO
+            if (runningProcessIndex1 == -1 && !readyQueue.empty()) {
+                Process* p = readyQueue.front();
+                readyQueue.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex1 = p->getProcessNumber();  // Update the running process
+            }
+            #endif
 
             // third now process the running process
-            if(runningProcessIndex != -1){
-                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+            if(runningProcessIndex0 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex0);  // Now returns a pointer
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime()==0) {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     //TODO: after comma it should be ith cpu burst of the process
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
-                    runningProcessIndex = -1;
+                    cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    runningProcessIndex0 = -1;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
             }
+            #ifdef TWO
+            if(runningProcessIndex1 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex1);  // Now returns a pointer
+                runningProcess->remainingTime--;
+                if (runningProcess->getRemainingTime()==0) {
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    //TODO: after comma it should be ith cpu burst of the process
+                    cout << "CPU1 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    runningProcessIndex1 = -1;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+            }
+            #endif
 
             for(Process& p : processList){
                 if(!p.isterminated()){
@@ -201,7 +228,10 @@ public:
 
     void SJF(){
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+        #ifdef TWO
+        int runningProcessIndex1 = -1;
+        #endif
         bool finished_All = true;
         while(true){
             finished_All = true;
@@ -229,27 +259,51 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !pq.empty()) {
+            if (runningProcessIndex0 == -1 && !pq.empty()) {
                 Process* p = pq.top();
                 pq.pop();
                 p->setRunningTime(currTime);
-                runningProcessIndex = p->getProcessNumber();  // Update the running process
+                runningProcessIndex0 = p->getProcessNumber();  // Update the running process
             }
+            #ifdef TWO
+            if (runningProcessIndex1 == -1 && !pq.empty()) {
+                Process* p = pq.top();
+                pq.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex1 = p->getProcessNumber();  // Update the running process
+            }
+            #endif
 
             // third now process the running process
-            if(runningProcessIndex != -1){
-                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+            if(runningProcessIndex0 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex0);  // Now returns a pointer
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0) {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    runningProcessIndex = -1;
+                    runningProcessIndex0 = -1;
                     //TODO: same as for fifo
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
             }
+
+            #ifdef TWO
+            if(runningProcessIndex1 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex1);  // Now returns a pointer
+                runningProcess->remainingTime--;
+                if (runningProcess->getRemainingTime() == 0) {
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex1 = -1;
+                    //TODO: same as for fifo
+                    cout << "CPU1 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+            }
+            #endif
 
             for(Process& p : processList){
                 if(!p.isterminated()){
@@ -267,7 +321,10 @@ public:
 
     void STRF(){
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+        #ifdef TWO
+        int runningProcessIndex1 = -1;
+        #endif
         bool finished_All = true;
 
         while(true){
@@ -299,27 +356,35 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !pq.empty()) {
+            if (runningProcessIndex0 == -1 && !pq.empty()) {
                 Process* p = pq.top();
                 pq.pop();
                 p->setRunningTime(currTime);
-                runningProcessIndex = p->getProcessNumber();  // Update the running process
+                runningProcessIndex0 = p->getProcessNumber();  // Update the running process
             }
+            #ifdef TWO
+            if (runningProcessIndex1 == -1 && !pq.empty()) {
+                Process* p = pq.top();
+                pq.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex1 = p->getProcessNumber();  // Update the running process
+            }
+            #endif
 
             // third now process the running process
-            if(runningProcessIndex != -1){
-                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+            if(runningProcessIndex0 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex0);  // Now returns a pointer
 
-                if(preemt && runningProcessIndex != -1 && !pq.empty()){
+                if(preemt && runningProcessIndex0 != -1 && !pq.empty()){
                     Process* topProcess = pq.top();
                     if (topProcess->getRemainingTime() < runningProcess->getRemainingTime()){
                         //put current process back to pq
-                        cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime-1 << endl;
+                        cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime-1 << endl;
                         pq.push(runningProcess);
                         runningProcess = pq.top();
                         pq.pop();
                         runningProcess->setRunningTime(currTime);
-                        runningProcessIndex = runningProcess->getProcessNumber();
+                        runningProcessIndex0 = runningProcess->getProcessNumber();
                     }
          
                 }
@@ -329,15 +394,48 @@ public:
                 if(runningProcess->remainingTime == 0){
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    runningProcessIndex = -1;
+                    runningProcessIndex0 = -1;
                     //TODO: same as for fifo
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
                 
                 // runningProcess->remainingTime--;
             }
+            #ifdef TWO
+            if(runningProcessIndex1 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex1);  // Now returns a pointer
+
+                if(preemt && runningProcessIndex1 != -1 && !pq.empty()){
+                    Process* topProcess = pq.top();
+                    if (topProcess->getRemainingTime() < runningProcess->getRemainingTime()){
+                        //put current process back to pq
+                        cout << "CPU1 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime-1 << endl;
+                        pq.push(runningProcess);
+                        runningProcess = pq.top();
+                        pq.pop();
+                        runningProcess->setRunningTime(currTime);
+                        runningProcessIndex1 = runningProcess->getProcessNumber();
+                    }
+         
+                }
+
+                runningProcess->remainingTime--;
+
+                if(runningProcess->remainingTime == 0){
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex1 = -1;
+                    //TODO: same as for fifo
+                    cout << "CPU1 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+                
+                // runningProcess->remainingTime--;
+            }
+            #endif
 
             for(Process& p : processList){
                 if(!p.isterminated()){
@@ -357,7 +455,10 @@ public:
     void RR(){
         int timeQuantum = 50;
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+        #ifdef TWO
+        int runningProcessIndex1 = -1;
+        #endif
         bool finished_All = true;
 
         while(true){
@@ -386,17 +487,26 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !readyQueue.empty()) {
+            if (runningProcessIndex0 == -1 && !readyQueue.empty()) {
                 Process* p = readyQueue.front();
                 readyQueue.pop();
                 p->setRunningTime(currTime);
                 p->setTimeSlice(timeQuantum);
-                runningProcessIndex = p->getProcessNumber();  // Update the running process
+                runningProcessIndex0 = p->getProcessNumber();  // Update the running process
             }
+            #ifdef TWO
+            if (runningProcessIndex1 == -1 && !readyQueue.empty()) {
+                Process* p = readyQueue.front();
+                readyQueue.pop();
+                p->setRunningTime(currTime);
+                p->setTimeSlice(timeQuantum);
+                runningProcessIndex1 = p->getProcessNumber();  // Update the running process
+            }
+            #endif
 
             // third now process the running process
-            if(runningProcessIndex != -1){
-                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex);  // Now returns a pointer
+            if(runningProcessIndex0 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex0);  // Now returns a pointer
 
                 runningProcess->remainingTime--;
                 runningProcess->timeSlice--;
@@ -404,21 +514,48 @@ public:
                 if(runningProcess->remainingTime == 0){
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    runningProcessIndex = -1;
+                    runningProcessIndex0 = -1;
                     //TODO: same as for fifo
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                     if(!runningProcess->isterminated())
                     	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
                 }
                 else if(runningProcess->timeSlice == 0 && !readyQueue.empty()){
                         //put current process back to readyQueue
-                        cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                        cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
                         readyQueue.push(runningProcess);
-                        runningProcessIndex = -1;
+                        runningProcessIndex0 = -1;
                 }
 
                 // runningProcess->remainingTime--;
             }
+
+            #ifdef TWO
+            if(runningProcessIndex1 != -1){
+                Process* runningProcess = getProcessByProcessNumber(runningProcessIndex1);  // Now returns a pointer
+
+                runningProcess->remainingTime--;
+                runningProcess->timeSlice--;
+
+                if(runningProcess->remainingTime == 0){
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex1 = -1;
+                    //TODO: same as for fifo
+                    cout << "CPU1 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                    if(!runningProcess->isterminated())
+                    	waitingQueue.push(runningProcess);  // Push pointer to waitingQueue
+                }
+                else if(runningProcess->timeSlice == 0 && !readyQueue.empty()){
+                        //put current process back to readyQueue
+                        cout << "CPU1 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    "<< currTime << endl;
+                        readyQueue.push(runningProcess);
+                        runningProcessIndex1 = -1;
+                }
+
+                // runningProcess->remainingTime--;
+            }
+            #endif
 
             for(Process& p : processList){
                 if(!p.isterminated()){
