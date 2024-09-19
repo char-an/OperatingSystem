@@ -16,7 +16,7 @@ build:
 	g++ -O3 -w schedular.cpp -o schedular
 
 build_two:
-	g++ -O3 -w _DTWO schedular.cpp -o schedular
+	g++ -O3 -w -DTWO schedular.cpp -o schedular
 
 run:
 	./schedular FIFO process1.dat
