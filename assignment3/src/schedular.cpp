@@ -153,7 +153,7 @@ struct Print
         cout << "\nCompletion times for all processes:" << endl;
         for (Process &p : processList)
         {
-            cout << "Process " << p.getProcessNumber() << " completed at time " << p.terminatedTime - p.arrivalTime + 1<< endl;
+            cout << "P" << p.getProcessNumber() << " completed at time " << p.terminatedTime - p.arrivalTime + 1<< endl;
         }
     }
 
@@ -830,7 +830,7 @@ int main(int argc, char **argv)
     cout << "Elapsed seconds: " << elapsedtime.count() << endl;
 
     s.callPrint();
-    //s.printCompletionTimes();
+    s.printCompletionTimes();
     s.completionTime();
 
     return 0;
