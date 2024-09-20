@@ -16,7 +16,8 @@ public:
     int burstIdx;
     int waitingTime; // time when process is added to waiting queue
     int runningTime; // time when process actually starts running on cpu
-    int timeSlice;
+    int timeSlice; // for round robin
+    int terminatedTime;
     Process(int processNumber, int arrivalTime, vector<int> &bursts)
     {
         this->processNumber = processNumber;
@@ -27,6 +28,7 @@ public:
         this->waitingTime = 0;
         this->runningTime = 0;
         this->timeSlice = 0;
+        this->terminatedTime = 0;
         // this->cpuAllocated = 1;
     }
 
@@ -89,6 +91,10 @@ public:
         }
         return false;
     }
+
+    void setTermTime(int currTime){
+        this->terminatedTime = currTime;
+    }
 };
 
 struct Comp
@@ -140,6 +146,33 @@ struct Print
             cout << msg.formatMessage() << endl;
         }
         messages.clear();
+    }
+
+    void printCompletionTimes(vector<Process>  &processList)
+    {
+        cout << "\nCompletion times for all processes:" << endl;
+        for (Process &p : processList)
+        {
+            cout << "Process " << p.getProcessNumber() << " completed at time " << p.terminatedTime - p.arrivalTime + 1<< endl;
+        }
+    }
+
+    void completionTime(vector<Process> &processList)
+    {
+        int sum =0;
+        int max= 0;
+        for (Process &p :processList){
+            sum += p.terminatedTime - p.arrivalTime + 1;
+            if (p.terminatedTime - p.arrivalTime + 1 > max){
+                max = p.terminatedTime - p.arrivalTime + 1;
+            }
+        }
+
+        int len = processList.size();
+        double average = static_cast<double>(sum)/len;
+
+        cout << "\nAverage Completion Time: " << average << endl;
+        cout << "Maximum Completion Time: " << max << endl;
     }
 };
 
@@ -204,6 +237,14 @@ public:
         print.printAll();
     }
 
+    void printCompletionTimes(){
+        print.printCompletionTimes(processList);
+    }
+    
+    void completionTime(){
+        print.completionTime(processList);
+    }
+
     void FIFO()
     {
         int currTime = 0;
@@ -239,6 +280,8 @@ public:
                         p->burstChange();
                         if (!p->isterminated())
                             readyQueue.push(p);
+                        else
+                            p->setTermTime(currTime);   //completion time
                     }
                     else
                     {
@@ -275,11 +318,13 @@ public:
                 {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 0);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
                     print.addMessage(s);
                     runningProcessIndex0 = -1;
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
 #ifdef TWO
@@ -291,11 +336,13 @@ public:
                 {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 1);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
                     print.addMessage(s);
                     runningProcessIndex1 = -1;
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
 #endif
@@ -352,6 +399,8 @@ public:
                         p->burstChange();
                         if (!p->isterminated())
                             pq.push(p);
+                        else
+                        p->setTermTime(currTime);
                     }
                     else
                     {
@@ -389,10 +438,12 @@ public:
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex0 = -1;
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 0);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
                     print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
 
@@ -406,10 +457,12 @@ public:
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex1 = -1;
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 1);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
                     print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
 #endif
@@ -469,7 +522,10 @@ public:
                         p->burstChange();
                         if (!p->isterminated())
                             pq.push(p);
+                        else
+                            p->setTermTime(currTime);
                         preemt = true;
+                        //TODO: check if it should be inside if loop
                     }
                     else
                     {
@@ -510,7 +566,7 @@ public:
                         // put current process back to pq
                         //cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime - 1 << endl;
                         // Why currTime - 1 ?? -- Parikshit
-                        Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime-1, 0);
+                        Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime-1, 0);
                         print.addMessage(s);
                         pq.push(runningProcess);
                         runningProcess = pq.top();
@@ -527,10 +583,12 @@ public:
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex0 = -1;
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 0);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
                     print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
 #ifdef TWO
@@ -544,7 +602,7 @@ public:
                     if (topProcess->getRemainingTime() < runningProcess->getRemainingTime())
                     {
                         // put current process back to pq
-                        Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime-1, 1);
+                        Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime-1, 1);
                         print.addMessage(s);
                         pq.push(runningProcess);
                         runningProcess = pq.top();
@@ -561,10 +619,12 @@ public:
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
                     runningProcessIndex1 = -1;
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime - 1, 1);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 1);
                     print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
 
             }
@@ -624,6 +684,8 @@ public:
                         p->burstChange();
                         if (!p->isterminated())
                             readyQueue.push(p);
+                        else
+                            p->setTermTime(currTime);
                     }
                     else
                     {
@@ -667,15 +729,17 @@ public:
                     runningProcess->burstChange();
                     runningProcessIndex0 = -1;
                     // TODO: same as for fifo
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 0);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
                     print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
                 else if (runningProcess->timeSlice == 0 && !readyQueue.empty())
                 {
                     // put current process back to readyQueue
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 0);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
                     print.addMessage(s);
                     readyQueue.push(runningProcess);
                     runningProcessIndex0 = -1;
@@ -696,15 +760,17 @@ public:
                     runningProcess->burstChange();
                     runningProcessIndex1 = -1;
                     // TODO: same as for fifo
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 1);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
                     print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
                 else if (runningProcess->timeSlice == 0 && !readyQueue.empty())
                 {
                     // put current process back to readyQueue
-                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getArrivaltime(), currTime, 1);
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
                     print.addMessage(s);
                     readyQueue.push(runningProcess);
                     runningProcessIndex1 = -1;
@@ -764,6 +830,8 @@ int main(int argc, char **argv)
     cout << "Elapsed seconds: " << elapsedtime.count() << endl;
 
     s.callPrint();
+    //s.printCompletionTimes();
+    s.completionTime();
 
     return 0;
 }
