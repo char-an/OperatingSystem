@@ -1,8 +1,9 @@
 #include <iostream>
 #include <fstream> // for file reading
-#include <sstream> // for using iss
+#include <sstream> // for using iss, ss
 #include <vector>
 #include <queue>
+#include <chrono>
 using namespace std;
 
 class Process
@@ -15,8 +16,8 @@ public:
     int burstIdx;
     int waitingTime; // time when process is added to waiting queue
     int runningTime; // time when process actually starts running on cpu
-    int timeSlice;
-    int pushedToReadyQueue;
+    int timeSlice;   // for round robin
+    int terminatedTime;
     Process(int processNumber, int arrivalTime, vector<int> &bursts)
     {
         this->processNumber = processNumber;
@@ -27,16 +28,12 @@ public:
         this->waitingTime = 0;
         this->runningTime = 0;
         this->timeSlice = 0;
-        this->pushedToReadyQueue = 0;
+        this->terminatedTime = 0;
     }
 
     int getArrivaltime()
     {
         return this->arrivalTime;
-    }
-
-    void setPushedToReadyQueue(int time){
-        this->pushedToReadyQueue = time;
     }
 
     int getCPUBurstNo()
@@ -93,6 +90,11 @@ public:
         }
         return false;
     }
+
+    void setTermTime(int currTime)
+    {
+        this->terminatedTime = currTime;
+    }
 };
 
 struct Comp
@@ -100,6 +102,129 @@ struct Comp
     bool operator()(const Process *a, const Process *b)
     {
         return a->remainingTime > b->remainingTime;
+    }
+};
+
+struct Statement
+{
+    int processNumber;
+    int burstIdx;
+    int runningTime;
+    int currTime;
+    int CPUNumber;
+
+    Statement(int processNumber, int burstIdx, int runningTime, int currTime, int CPUNumber)
+    {
+        this->processNumber = processNumber;
+        this->burstIdx = burstIdx;
+        this->runningTime = runningTime;
+        this->currTime = currTime;
+        this->CPUNumber = CPUNumber;
+    }
+
+    string formatMessage()
+    {
+        stringstream ss;
+        ss << "CPU" << this->CPUNumber << " - P" << this->processNumber << ", " << this->burstIdx << "    " << this->runningTime << "    " << this->currTime;
+        return ss.str();
+    }
+};
+
+struct Print
+{
+    vector<Statement> messages;
+
+    void addMessage(Statement &message)
+    {
+        messages.push_back(message);
+    }
+
+    void printAll()
+    {
+        for (auto &msg : messages)
+        {
+            cout << msg.formatMessage() << endl;
+        }
+        messages.clear();
+    }
+
+    void printCompletionTimes(vector<Process> &processList)
+    {
+        cout << "\nCompletion times for all processes:" << endl;
+        for (Process &p : processList)
+        {
+            cout << "P" << p.getProcessNumber() << " completed at time " << p.terminatedTime - p.arrivalTime + 1 << endl;
+        }
+    }
+
+    void completionTime(vector<Process> &processList)
+    {
+        int sum = 0;
+        int max = 0;
+        for (Process &p : processList)
+        {
+            sum += p.terminatedTime - p.arrivalTime + 1;
+            if (p.terminatedTime - p.arrivalTime + 1 > max)
+            {
+                max = p.terminatedTime - p.arrivalTime + 1;
+            }
+        }
+
+        int len = processList.size();
+        double average = static_cast<double>(sum) / len;
+
+        cout << "\nAverage Completion Time: " << average << endl;
+        cout << "Maximum Completion Time: " << max << endl;
+    }
+
+    void makeSpan(vector<Process> &processList)
+    {
+        int endTime = 0;
+        for (Process &p : processList)
+        {
+            if (p.terminatedTime > endTime)
+                endTime = p.terminatedTime;
+        }
+        cout << "\nMakeSpan: " << endTime + 1 << endl;
+    }
+
+    void printWaitingTimes(vector<Process> &processList)
+    {
+        cout << "\nWaiting times for all processes:" << endl;
+        for (Process &p : processList)
+        {
+            int workDone = 0;
+            for (int i = 0; i < p.bursts.size() - 1; i++)
+            {
+                workDone += p.bursts[i];
+            }
+            cout << "P" << p.getProcessNumber() << " waiting time is: " << p.terminatedTime - p.arrivalTime + 1 - workDone << endl;
+        }
+    }
+
+    void waitingTime(vector<Process> &processList)
+    {
+        int sum = 0;
+        int max = 0;
+        for (Process &p : processList)
+        {
+            int workDone = 0;
+            for (int i = 0; i < p.bursts.size() - 1; i++)
+            {
+                workDone += p.bursts[i];
+            }
+            sum += p.terminatedTime - p.arrivalTime + 1 - workDone;
+            if (p.terminatedTime - p.arrivalTime + 1 - workDone > max)
+            {
+                max = p.terminatedTime - p.arrivalTime + 1 - workDone;
+            }
+        }
+
+        int len = processList.size();
+        double average = static_cast<double>(sum) / len;
+
+        cout << "\nAverage Waiting Time: " << average << endl;
+        cout << "Maximum Waiting Time: " << max << "\n" << endl;
     }
 };
 
@@ -111,6 +236,7 @@ class Schedular
 {
 public:
     vector<Process> processList; // list of processes
+    Print print;                 // structure to store print statements
 
     void addprocess(int processNumber, int arrivalTime, vector<int> &bursts)
     {
@@ -159,15 +285,45 @@ public:
         return nullptr;
     }
 
+    void callPrint()
+    {
+        print.printAll();
+    }
+
+    void printCompletionTimes()
+    {
+        print.printCompletionTimes(processList);
+    }
+
+    void completionTime()
+    {
+        print.completionTime(processList);
+    }
+
+    void printMakeSpan()
+    {
+        print.makeSpan(processList);
+    }
+
+    void printWaitingTimes()
+    {
+        print.printWaitingTimes(processList);
+    }
+
+    void waitingTime()
+    {
+        print.waitingTime(processList);
+    }
+
     void FIFO()
     {
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+#ifdef TWO
+        int runningProcessIndex1 = -1;
+#endif
+
         bool finished_All = true;
-        cout << "CPU0" << endl;
-        int jobCount = 0;
-        int meanCompletionTime = 0;
-        int meanWaitingTime = 0;
         while (true)
         {
             finished_All = true;
@@ -178,7 +334,6 @@ public:
                 if (p.getArrivaltime() == currTime)
                 {
                     readyQueue.push(&p); // Process is added to the ready queue
-                    p.setPushedToReadyQueue(currTime);
                 }
             }
 
@@ -192,10 +347,10 @@ public:
                     if (currTime - p->getWaitingTime() >= p->getRemainingTime())
                     {
                         p->burstChange();
-                        if (!p->isterminated()){
+                        if (!p->isterminated())
                             readyQueue.push(p);
-                            p->setPushedToReadyQueue(currTime);
-                        }
+                        else
+                            p->setTermTime(currTime); // completion time
                     }
                     else
                     {
@@ -206,33 +361,60 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !readyQueue.empty())
+            if (runningProcessIndex0 == -1 && !readyQueue.empty())
             {
                 Process *p = readyQueue.front();
                 readyQueue.pop();
                 p->setRunningTime(currTime);
-                meanWaitingTime += currTime - p->pushedToReadyQueue + 1;
-                jobCount++;
-                runningProcessIndex = p->getProcessNumber(); // Update the running process
+                runningProcessIndex0 = p->getProcessNumber(); // Update the running process
             }
+#ifdef TWO
+            if (runningProcessIndex1 == -1 && !readyQueue.empty())
+            {
+                Process *p = readyQueue.front();
+                readyQueue.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex1 = p->getProcessNumber(); // Update the running process
+            }
+#endif
 
             // third now process the running process
-            if (runningProcessIndex != -1)
+            if (runningProcessIndex0 != -1)
             {
-                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex); // Now returns a pointer
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex0); // Now returns a pointer
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0)
                 {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    // TODO: after comma it should be ith cpu burst of the process
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime << endl;
-                    meanCompletionTime += currTime - runningProcess->getRunningTime() + 1;
-                    runningProcessIndex = -1;
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
+                    print.addMessage(s);
+                    runningProcessIndex0 = -1;
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
+#ifdef TWO
+            if (runningProcessIndex1 != -1)
+            {
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex1); // Now returns a pointer
+                runningProcess->remainingTime--;
+                if (runningProcess->getRemainingTime() == 0)
+                {
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
+                    print.addMessage(s);
+                    runningProcessIndex1 = -1;
+                    if (!runningProcess->isterminated())
+                        waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
+                }
+            }
+#endif
 
             for (Process &p : processList)
             {
@@ -249,23 +431,16 @@ public:
 
             currTime++;
         }
-        int makeSpan = currTime - 0;
-        cout << "\nFIFO" << endl;
-        cout << "Makespan: " << makeSpan << endl;
-        cout << "Throughput: " << static_cast<float>(jobCount) / makeSpan << endl;
-        cout << "Mean completion time: " << meanCompletionTime / jobCount << endl;
-        cout << "Mean waiting time: " << meanWaitingTime / jobCount << endl;
     }
 
     void SJF()
     {
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+#ifdef TWO
+        int runningProcessIndex1 = -1;
+#endif
         bool finished_All = true;
-        cout << "CPU0" << endl;
-        int jobCount = 0;
-        int meanCompletionTime = 0;
-        int meanWaitingTime = 0;
         while (true)
         {
             finished_All = true;
@@ -275,7 +450,6 @@ public:
                 if (p.getArrivaltime() == currTime)
                 {
                     pq.push(&p);
-                    p.setPushedToReadyQueue(currTime);
                 }
             }
 
@@ -289,10 +463,10 @@ public:
                     if (currTime - p->getWaitingTime() == p->getRemainingTime())
                     {
                         p->burstChange();
-                        if (!p->isterminated()){
+                        if (!p->isterminated())
                             pq.push(p);
-                            p->setPushedToReadyQueue(currTime);
-                        }
+                        else
+                            p->setTermTime(currTime);
                     }
                     else
                     {
@@ -303,33 +477,61 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !pq.empty())
+            if (runningProcessIndex0 == -1 && !pq.empty())
             {
                 Process *p = pq.top();
                 pq.pop();
                 p->setRunningTime(currTime);
-                meanWaitingTime += currTime - p->pushedToReadyQueue + 1;
-                jobCount++;
-                runningProcessIndex = p->getProcessNumber(); // Update the running process
+                runningProcessIndex0 = p->getProcessNumber(); // Update the running process
             }
+#ifdef TWO
+            if (runningProcessIndex1 == -1 && !pq.empty())
+            {
+                Process *p = pq.top();
+                pq.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex1 = p->getProcessNumber(); // Update the running process
+            }
+#endif
 
             // third now process the running process
-            if (runningProcessIndex != -1)
+            if (runningProcessIndex0 != -1)
             {
-                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex); // Now returns a pointer
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex0); // Now returns a pointer
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0)
                 {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    runningProcessIndex = -1;
-                    // TODO: same as for fifo
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime << endl;
-                    meanCompletionTime += currTime - runningProcess->getRunningTime() + 1;
+                    runningProcessIndex0 = -1;
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
+                    print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
+
+#ifdef TWO
+            if (runningProcessIndex1 != -1)
+            {
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex1); // Now returns a pointer
+                runningProcess->remainingTime--;
+                if (runningProcess->getRemainingTime() == 0)
+                {
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex1 = -1;
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
+                    print.addMessage(s);
+                    if (!runningProcess->isterminated())
+                        waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
+                }
+            }
+#endif
 
             for (Process &p : processList)
             {
@@ -346,23 +548,19 @@ public:
 
             currTime++;
         }
-        int makeSpan = currTime - 0;
-        cout << "\nSJF" << endl;
-        cout << "Makespan: " << makeSpan << endl;
-        cout << "Throughput: " << static_cast<float>(jobCount) / makeSpan << endl;
-        cout << "Mean completion time: " << meanCompletionTime / jobCount << endl;
-        cout << "Mean waiting time: " << meanWaitingTime / jobCount << endl;
+        // int makeSpan = currTime - 0;
+        // cout << "\nSJF" << endl;
+        // cout << "Makespan: " << makeSpan << endl;
     }
 
     void SRTF()
     {
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+#ifdef TWO
+        int runningProcessIndex1 = -1;
+#endif
         bool finished_All = true;
-        cout << "CPU0" << endl;
-        int jobCount = 0;
-        int meanCompletionTime = 0;
-        int meanWaitingTime = 0;
 
         while (true)
         {
@@ -374,7 +572,6 @@ public:
                 if (p.getArrivaltime() == currTime)
                 {
                     pq.push(&p);
-                    p.setPushedToReadyQueue(currTime);
                     preemt = true;
                 }
             }
@@ -389,11 +586,12 @@ public:
                     if (currTime - p->getWaitingTime() == p->getRemainingTime() + 1)
                     {
                         p->burstChange();
-                        if (!p->isterminated()){
+                        if (!p->isterminated())
                             pq.push(p);
-                            p->setPushedToReadyQueue(currTime);
-                        }
+                        else
+                            p->setTermTime(currTime);
                         preemt = true;
+                        // TODO: check if it should be inside if loop
                     }
                     else
                     {
@@ -403,37 +601,44 @@ public:
                 waitingQueue = temp;
             }
 
-            // second check if no process is running currently, we will remove first process in readyqueue, now that process is in Priority state
-            if (runningProcessIndex == -1 && !pq.empty())
+            // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
+            if (runningProcessIndex0 == -1 && !pq.empty())
             {
                 Process *p = pq.top();
                 pq.pop();
                 p->setRunningTime(currTime);
-                meanWaitingTime += currTime - p->pushedToReadyQueue + 1;
-                runningProcessIndex = p->getProcessNumber(); // Update the running process
+                runningProcessIndex0 = p->getProcessNumber(); // Update the running process
             }
+#ifdef TWO
+            if (runningProcessIndex1 == -1 && !pq.empty())
+            {
+                Process *p = pq.top();
+                pq.pop();
+                p->setRunningTime(currTime);
+                runningProcessIndex1 = p->getProcessNumber(); // Update the running process
+            }
+#endif
 
             // third now process the running process
-            if (runningProcessIndex != -1)
+            if (runningProcessIndex0 != -1)
             {
-                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex); // Now returns a pointer
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex0); // Now returns a pointer
 
-                if (preemt && runningProcessIndex != -1 && !pq.empty())
+                if (preemt && runningProcessIndex0 != -1 && !pq.empty())
                 {
                     Process *topProcess = pq.top();
                     if (topProcess->getRemainingTime() < runningProcess->getRemainingTime())
                     {
                         // put current process back to pq
-                        cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime - 1 << endl;
-                        meanCompletionTime += currTime - runningProcess->getRunningTime() + 1;
+                        // cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime - 1 << endl;
+                        // Why currTime - 1 ?? -- Parikshit
+                        Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 0);
+                        print.addMessage(s);
                         pq.push(runningProcess);
-                        runningProcess->setPushedToReadyQueue(currTime); // current process is preempted and pushed to ready queue
                         runningProcess = pq.top();
                         pq.pop();
-                        jobCount++;
                         runningProcess->setRunningTime(currTime);
-                        meanWaitingTime += currTime - runningProcess->pushedToReadyQueue + 1;
-                        runningProcessIndex = runningProcess->getProcessNumber();
+                        runningProcessIndex0 = runningProcess->getProcessNumber();
                     }
                 }
 
@@ -443,15 +648,52 @@ public:
                 {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    runningProcessIndex = -1;
-                    jobCount++;
-                    // TODO: same as for fifo
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime << endl;
-                    meanCompletionTime += currTime - runningProcess->getRunningTime() + 1;
+                    runningProcessIndex0 = -1;
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
+                    print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
             }
+#ifdef TWO
+            if (runningProcessIndex1 != -1)
+            {
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex1); // Now returns a pointer
+
+                if (preemt && runningProcessIndex1 != -1 && !pq.empty())
+                {
+                    Process *topProcess = pq.top();
+                    if (topProcess->getRemainingTime() < runningProcess->getRemainingTime())
+                    {
+                        // put current process back to pq
+                        Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 1);
+                        print.addMessage(s);
+                        pq.push(runningProcess);
+                        runningProcess = pq.top();
+                        pq.pop();
+                        runningProcess->setRunningTime(currTime);
+                        runningProcessIndex1 = runningProcess->getProcessNumber();
+                    }
+                }
+
+                runningProcess->remainingTime--;
+
+                if (runningProcess->remainingTime == 0)
+                {
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex1 = -1;
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 1);
+                    print.addMessage(s);
+                    if (!runningProcess->isterminated())
+                        waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
+                }
+            }
+#endif
 
             for (Process &p : processList)
             {
@@ -468,25 +710,20 @@ public:
 
             currTime++;
         }
-
-        int makeSpan = currTime - 0;
-        cout << "\nSRTF" << endl;
-        cout << "Makespan: " << makeSpan << endl;
-        cout << "Throughput: " << static_cast<float>(jobCount) / makeSpan << endl;
-        cout << "Mean completion time: " << meanCompletionTime / jobCount << endl;
-        cout << "Mean waiting time: " << meanWaitingTime / jobCount << endl;
+        // int makeSpan = currTime - 0;
+        // cout << "\nSRTF" << endl;
+        // cout << "Makespan: " << makeSpan << endl;
     }
 
     void RR()
     {
-        int timeQuantum = 8;
+        int timeQuantum = 60;
         int currTime = 0;
-        int runningProcessIndex = -1;
+        int runningProcessIndex0 = -1;
+#ifdef TWO
+        int runningProcessIndex1 = -1;
+#endif
         bool finished_All = true;
-        cout << "CPU0" << endl;
-        int jobCount = 0;
-        int meanCompletionTime = 0;
-        int meanWaitingTime = 0;
 
         while (true)
         {
@@ -512,6 +749,8 @@ public:
                         p->burstChange();
                         if (!p->isterminated())
                             readyQueue.push(p);
+                        else
+                            p->setTermTime(currTime);
                     }
                     else
                     {
@@ -522,21 +761,29 @@ public:
             }
 
             // second check if no process is running currently, we will remove first process in readyqueue, now that process is in running state
-            if (runningProcessIndex == -1 && !readyQueue.empty())
+            if (runningProcessIndex0 == -1 && !readyQueue.empty())
             {
                 Process *p = readyQueue.front();
                 readyQueue.pop();
-                jobCount++;
                 p->setRunningTime(currTime);
                 p->setTimeSlice(timeQuantum);
-                meanWaitingTime += currTime - p->pushedToReadyQueue + 1;
-                runningProcessIndex = p->getProcessNumber(); // Update the running process
+                runningProcessIndex0 = p->getProcessNumber(); // Update the running process
             }
+#ifdef TWO
+            if (runningProcessIndex1 == -1 && !readyQueue.empty())
+            {
+                Process *p = readyQueue.front();
+                readyQueue.pop();
+                p->setRunningTime(currTime);
+                p->setTimeSlice(timeQuantum);
+                runningProcessIndex1 = p->getProcessNumber(); // Update the running process
+            }
+#endif
 
             // third now process the running process
-            if (runningProcessIndex != -1)
+            if (runningProcessIndex0 != -1)
             {
-                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex); // Now returns a pointer
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex0); // Now returns a pointer
 
                 runningProcess->remainingTime--;
                 runningProcess->timeSlice--;
@@ -545,26 +792,56 @@ public:
                 {
                     runningProcess->setWaitingTime(currTime);
                     runningProcess->burstChange();
-                    runningProcessIndex = -1;
+                    runningProcessIndex0 = -1;
                     // TODO: same as for fifo
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime << endl;
-                    jobCount++;
-                    meanCompletionTime += currTime - runningProcess->getRunningTime() + 1;
-
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
+                    print.addMessage(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
                 }
                 else if (runningProcess->timeSlice == 0 && !readyQueue.empty())
                 {
                     // put current process back to readyQueue
-                    cout << "P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime << endl;
-                    jobCount++;
-                    meanCompletionTime += currTime - runningProcess->getRunningTime() + 1;
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
+                    print.addMessage(s);
                     readyQueue.push(runningProcess);
-                    runningProcess->setPushedToReadyQueue(currTime);
-                    runningProcessIndex = -1;
+                    runningProcessIndex0 = -1;
                 }
             }
+
+#ifdef TWO
+            if (runningProcessIndex1 != -1)
+            {
+                Process *runningProcess = getProcessByProcessNumber(runningProcessIndex1); // Now returns a pointer
+
+                runningProcess->remainingTime--;
+                runningProcess->timeSlice--;
+
+                if (runningProcess->remainingTime == 0)
+                {
+                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->burstChange();
+                    runningProcessIndex1 = -1;
+                    // TODO: same as for fifo
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
+                    print.addMessage(s);
+                    if (!runningProcess->isterminated())
+                        waitingQueue.push(runningProcess); // Push pointer to waitingQueue
+                    else
+                        runningProcess->setTermTime(currTime);
+                }
+                else if (runningProcess->timeSlice == 0 && !readyQueue.empty())
+                {
+                    // put current process back to readyQueue
+                    Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
+                    print.addMessage(s);
+                    readyQueue.push(runningProcess);
+                    runningProcessIndex1 = -1;
+                }
+            }
+#endif
 
             for (Process &p : processList)
             {
@@ -581,12 +858,9 @@ public:
 
             currTime++;
         }
-        int makeSpan = currTime - 0;
-        cout << "\nRR" << endl;
-        cout << "Makespan: " << makeSpan << endl;
-        cout << "Throughput: " << static_cast<float>(jobCount) / makeSpan << endl;
-        cout << "Mean completion time: " << meanCompletionTime / jobCount << endl;
-        cout << "Mean waiting time: " << meanWaitingTime / jobCount << endl;
+        // int makeSpan = currTime - 0;
+        // cout << "\nRR" << endl;
+        // cout << "Makespan: " << makeSpan << endl;
     }
 };
 
@@ -604,6 +878,8 @@ int main(int argc, char **argv)
     Schedular s;
     s.load_info_from_file(process_info_file);
 
+    const auto start = chrono::high_resolution_clock::now();
+
     if (algorithm == "FIFO")
         s.FIFO();
     else if (algorithm == "SJF")
@@ -612,6 +888,19 @@ int main(int argc, char **argv)
         s.SRTF();
     else if (algorithm == "RR")
         s.RR();
-    cout << "\n" << endl;
+
+    const auto end = chrono::high_resolution_clock::now();
+    const chrono::duration<double> elapsedtime = end - start;
+
+    cout << "Elapsed time in seconds: " << elapsedtime.count() << endl;
+    cout << "Elapsed time in microseconds: " << std::chrono::duration_cast<std::chrono::microseconds>(elapsedtime).count() << endl;
+
+    s.callPrint();
+    s.printMakeSpan();
+    s.printCompletionTimes();
+    s.completionTime();
+    s.printWaitingTimes();
+    s.waitingTime();
+
     return 0;
 }

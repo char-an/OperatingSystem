@@ -3,6 +3,9 @@ all: build
 build:
 	g++ schedular.cpp -o schedular.out
 
+build_two:
+	g++ -DTWO schedular.cpp -o schedular.out
+
 run:
 	./schedular.out FIFO process1.dat
 	./schedular.out SJF process1.dat
