@@ -132,20 +132,33 @@ struct Statement
 
 struct Print
 {
-    vector<Statement> messages;
+    vector<Statement> messages0;
+    vector<Statement> messages1;
 
-    void addMessage(Statement &message)
+    void addMessage0(Statement &message)
     {
-        messages.push_back(message);
+        messages0.push_back(message);
+    }
+    void addMessage1(Statement &message)
+    {
+        messages1.push_back(message);
     }
 
     void printAll()
     {
-        for (auto &msg : messages)
+        for (auto &msg : messages0)
         {
             cout << msg.formatMessage() << endl;
         }
-        messages.clear();
+        cout << endl;
+        
+        for (auto &msg : messages1)
+        {
+            cout << msg.formatMessage() << endl;
+        }
+
+        messages0.clear();
+        messages1.clear();
     }
 
     void printCompletionTimes(vector<Process> &processList)
@@ -385,10 +398,10 @@ public:
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
-                    print.addMessage(s);
+                    print.addMessage0(s);
                     runningProcessIndex0 = -1;
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
@@ -403,10 +416,10 @@ public:
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
-                    print.addMessage(s);
+                    print.addMessage1(s);
                     runningProcessIndex1 = -1;
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
@@ -501,11 +514,11 @@ public:
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     runningProcessIndex0 = -1;
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
-                    print.addMessage(s);
+                    print.addMessage0(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
                     else
@@ -520,11 +533,11 @@ public:
                 runningProcess->remainingTime--;
                 if (runningProcess->getRemainingTime() == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     runningProcessIndex1 = -1;
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
-                    print.addMessage(s);
+                    print.addMessage1(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
                     else
@@ -633,7 +646,7 @@ public:
                         // cout << "CPU0 - P" << runningProcess->getProcessNumber() << "," << runningProcess->getCPUBurstNo() << "    " << runningProcess->getRunningTime() << "    " << currTime - 1 << endl;
                         // Why currTime - 1 ?? -- Parikshit
                         Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 0);
-                        print.addMessage(s);
+                        print.addMessage0(s);
                         pq.push(runningProcess);
                         runningProcess = pq.top();
                         pq.pop();
@@ -646,11 +659,11 @@ public:
 
                 if (runningProcess->remainingTime == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     runningProcessIndex0 = -1;
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
-                    print.addMessage(s);
+                    print.addMessage0(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
                     else
@@ -669,7 +682,7 @@ public:
                     {
                         // put current process back to pq
                         Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 1);
-                        print.addMessage(s);
+                        print.addMessage1(s);
                         pq.push(runningProcess);
                         runningProcess = pq.top();
                         pq.pop();
@@ -682,11 +695,11 @@ public:
 
                 if (runningProcess->remainingTime == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     runningProcessIndex1 = -1;
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime - 1, 1);
-                    print.addMessage(s);
+                    print.addMessage1(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
                     else
@@ -790,12 +803,12 @@ public:
 
                 if (runningProcess->remainingTime == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     runningProcessIndex0 = -1;
                     // TODO: same as for fifo
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
-                    print.addMessage(s);
+                    print.addMessage0(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
                     else
@@ -805,7 +818,7 @@ public:
                 {
                     // put current process back to readyQueue
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 0);
-                    print.addMessage(s);
+                    print.addMessage0(s);
                     readyQueue.push(runningProcess);
                     runningProcessIndex0 = -1;
                 }
@@ -821,12 +834,12 @@ public:
 
                 if (runningProcess->remainingTime == 0)
                 {
-                    runningProcess->setWaitingTime(currTime);
+                    runningProcess->setWaitingTime(currTime+1);
                     runningProcess->burstChange();
                     runningProcessIndex1 = -1;
                     // TODO: same as for fifo
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
-                    print.addMessage(s);
+                    print.addMessage1(s);
                     if (!runningProcess->isterminated())
                         waitingQueue.push(runningProcess); // Push pointer to waitingQueue
                     else
@@ -836,7 +849,7 @@ public:
                 {
                     // put current process back to readyQueue
                     Statement s(runningProcess->getProcessNumber(), runningProcess->getCPUBurstNo(), runningProcess->getRunningTime(), currTime, 1);
-                    print.addMessage(s);
+                    print.addMessage1(s);
                     readyQueue.push(runningProcess);
                     runningProcessIndex1 = -1;
                 }
