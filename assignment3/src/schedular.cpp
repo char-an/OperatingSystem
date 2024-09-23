@@ -125,7 +125,7 @@ struct Statement
     string formatMessage()
     {
         stringstream ss;
-        ss << "CPU" << this->CPUNumber << " - P" << this->processNumber << ", " << this->burstIdx << "    " << this->runningTime << "    " << this->currTime;
+        ss << "P" << this->processNumber << ", " << this->burstIdx << "    " << this->runningTime << "    " << this->currTime;
         return ss.str();
     }
 };
@@ -146,11 +146,16 @@ struct Print
 
     void printAll()
     {
+        cout << "CPU0" << endl;
         for (auto &msg : messages0)
         {
             cout << msg.formatMessage() << endl;
         }
         cout << endl;
+
+        if(messages1.size() != 0){
+            cout << "CPU1" << endl;
+        }
         
         for (auto &msg : messages1)
         {
@@ -596,7 +601,7 @@ public:
                 {
                     Process *p = waitingQueue.front();
                     waitingQueue.pop();
-                    if (currTime - p->getWaitingTime() == p->getRemainingTime() + 1)
+                    if (currTime - p->getWaitingTime() == p->getRemainingTime())
                     {
                         p->burstChange();
                         if (!p->isterminated())
@@ -757,7 +762,7 @@ public:
                 {
                     Process *p = waitingQueue.front();
                     waitingQueue.pop();
-                    if (currTime - p->getWaitingTime() == p->getRemainingTime() + 1)
+                    if (currTime - p->getWaitingTime() == p->getRemainingTime())
                     {
                         p->burstChange();
                         if (!p->isterminated())
