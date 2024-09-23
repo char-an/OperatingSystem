@@ -39,7 +39,6 @@ deps/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 CMakeLists.txt.user
 
 # IDE specific files
