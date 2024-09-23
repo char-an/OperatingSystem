@@ -125,7 +125,7 @@ struct Statement
     string formatMessage()
     {
         stringstream ss;
-        ss << "CPU" << this->CPUNumber << " - P" << this->processNumber << ", " << this->burstIdx << "    " << this->runningTime << "    " << this->currTime;
+        ss << "P" << this->processNumber << ", " << this->burstIdx << "    " << this->runningTime << "    " << this->currTime;
         return ss.str();
     }
 };
@@ -146,12 +146,13 @@ struct Print
 
     void printAll()
     {
+        cout << "CPU0" << endl;
         for (auto &msg : messages0)
         {
             cout << msg.formatMessage() << endl;
         }
         cout << endl;
-        
+        cout << "CPU1" << endl;
         for (auto &msg : messages1)
         {
             cout << msg.formatMessage() << endl;
