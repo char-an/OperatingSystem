@@ -152,7 +152,11 @@ struct Print
             cout << msg.formatMessage() << endl;
         }
         cout << endl;
-        cout << "CPU1" << endl;
+
+        if(messages1.size() != 0){
+            cout << "CPU1" << endl;
+        }
+        
         for (auto &msg : messages1)
         {
             cout << msg.formatMessage() << endl;
