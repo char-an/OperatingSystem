@@ -6,22 +6,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <zlib.h>
 
 #define SIZE 1000
 
 using namespace std;
-
-uint32_t hasher(uint8_t ***pixels,int height,int width){
-	uint32_t hashed=crc32(0L,Z_NULL,0); //initialize hash method
-
-	for(int i=0;i<height;i++){
-		for(int j=0;j<width;j++){
-			hashed=crc32(hashed,reinterpret_cast<const Bytef*>(pixels[i][j]),3*sizeof(uint8_t));
-		}
-	}
-	return hashed;
-}
 
 void send_image(int pipefd,struct image_t *image) {
     //cout << "Sending Image: Height = " << image->height << " Width = " << image->width << endl;
@@ -34,8 +22,6 @@ void send_image(int pipefd,struct image_t *image) {
             write(pipefd,image->image_pixels[i][j], 3*sizeof(uint8_t));
         }
     }
-	uint32_t hashed=hasher(image->image_pixels,image->height,image->width);
-	write(pipefd,&hashed,sizeof(uint32_t));
 }
 
 struct image_t *receive_image(int pipefd) {
@@ -55,12 +41,6 @@ struct image_t *receive_image(int pipefd) {
 			read(pipefd,image->image_pixels[i][j],3*sizeof(uint8_t));
 		}
 	}
-	uint32_t get_hashed;
-	read(pipefd,&get_hashed,sizeof(uint32_t));
-	uint32_t curr_hashed=hasher(image->image_pixels,image->height,image->width);
-	if(get_hashed!=curr_hashed) cout << "image corrupted" << endl;
-	// else cout << "image intact" << endl;
-	//not sure what logic to implement incase of failed pipe so left it empty as it was not specified to me what to do ;] 
     return image;
 }
 
