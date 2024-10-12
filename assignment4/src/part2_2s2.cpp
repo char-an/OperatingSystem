@@ -11,15 +11,15 @@
 
 using namespace std;
 
-struct image_t *S1_smoothen(struct image_t *input_image)
+struct image_t *S2_find_details(struct image_t *input_image, struct image_t *smoothened_image)
 {
 	// error handling for nullptr
 	if (input_image == nullptr)
 	{
-		cout << "input image in smoothen function is null" << endl;
+		cout << "input image in find_details function is null" << endl;
 		return nullptr;
 	}
-
+	//|input - smoothened|
 	// initialization
 	struct image_t *image = new struct image_t;
 	image->height = input_image->height;
@@ -33,34 +33,13 @@ struct image_t *S1_smoothen(struct image_t *input_image)
 	}
 
 	// logic
-	int delrow[] = {-1, 0, 1, -1, 0, 1, -1, 0, 1};
-	int delcol[] = {-1, -1, -1, 0, 0, 0, 1, 1, 1};
-
 	for (int i=0;i<input_image->height;i++)
 	{
-		for (int j=0;j<input_image->width;j++)
+		for (int j=0; j <input_image->width;j++)
 		{
-			if (i==0 || j==0 || i==input_image->height - 1 || j ==input_image->width - 1)
+			for (int c=0; c <3;c++)
 			{
-				image->image_pixels[i][j][0] = input_image->image_pixels[i][j][0];
-				image->image_pixels[i][j][1] = input_image->image_pixels[i][j][1];
-				image->image_pixels[i][j][2] = input_image->image_pixels[i][j][2];
-				continue;
-			}
-			// for red
-			for (int k = 0; k < 9; k++)
-			{
-				image->image_pixels[i][j][0] += uint8_t(1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][0]));
-			}
-			// for green
-			for (int k = 0; k < 9; k++)
-			{
-				image->image_pixels[i][j][1] += uint8_t(1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][1]));
-			}
-			// for blue
-			for (int k = 0; k < 9; k++)
-			{
-				image->image_pixels[i][j][2] += uint8_t(1.0 / 9 * (input_image->image_pixels[i + delrow[k]][j + delcol[k]][2]));
+				image->image_pixels[i][j][c] = abs(input_image->image_pixels[i][j][c] - smoothened_image->image_pixels[i][j][c]);
 			}
 		}
 	}
@@ -93,7 +72,6 @@ int main(int argc, char **argv)
     }
 
     size_t size = input_image->height * input_image->width * 3 ;
-	//size_t size = 1024;
 	cout << "Calculated size for shared memory: " << size << endl;
 
     // Resize the shared memory object to the desired size
@@ -108,22 +86,61 @@ int main(int argc, char **argv)
         return 1;
 	}
 
-	// for(int i=0;i<1000;i++){
-	// 	smoothened_image = S1_smoothen(input_image);
-    //     sprintf((char *)ptr, "Hello, shared memory!");
-	// }
+    const char *name2 = "/shared_s23";
+    int shm_fd2 = shm_open(name2, O_CREAT | O_RDWR, 0666);
+    if(shm_fd2 == -1){
+        perror("shm_open");
+        return 1;
+    }
 
-	smoothened_image = S1_smoothen(input_image);
+    size_t size = input_image->height * input_image->width * 3 ;
+	cout << "Calculated size for shared memory: " << size << endl;
 
+    // Resize the shared memory object to the desired size
+    if (ftruncate(shm_fd2, size) == -1) {
+        perror("ftruncate");
+        return 1;
+    }
+
+    void *ptr2 = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd2, 0);
+    if (ptr2 == MAP_FAILED) {
+        perror("mmap");
+        return 1;
+	}
+
+    // Cast ptr to uint8_t* for indexing
+    uint8_t* shared_memory = static_cast<uint8_t*>(ptr);
+
+    // Reconstruct smoothened_image from shared memory
+    smoothened_image = new image_t;
+    smoothened_image->height = input_image->height;
+    smoothened_image->width = input_image->width;
+    smoothened_image->image_pixels = new uint8_t** [smoothened_image->height];
     for (int i = 0; i < smoothened_image->height; i++)
     {
+        smoothened_image->image_pixels[i] = new uint8_t* [smoothened_image->width];
         for (int j = 0; j < smoothened_image->width; j++)
         {
-           	memcpy((char *)ptr + (i * smoothened_image->width + j) * 3, smoothened_image->image_pixels[i][j], 3);
+            smoothened_image->image_pixels[i][j] = new uint8_t[3];
+
+            // Read RGB values from shared memory
+            int index = (i * smoothened_image->width + j) * 3;
+            smoothened_image->image_pixels[i][j][0] = shared_memory[index];     // Red
+            smoothened_image->image_pixels[i][j][1] = shared_memory[index + 1]; // Green
+            smoothened_image->image_pixels[i][j][2] = shared_memory[index + 2]; // Blue
+        }
+    }
+
+    details_image = S2_find_details(input_image,smoothened_image);
+
+    for (int i = 0; i < details_image->height; i++)
+    {
+        for (int j = 0; j < details_image->width; j++)
+        {
+           	memcpy((char *)ptr2 + (i * details_image->width + j) * 3, details_image->image_pixels[i][j], 3);
         }
     }
     cout << "Image written to shared memory successfully!\n";
-	// write_ppm_file(argv[2], sharpened_image);
 
 	end = chrono::high_resolution_clock::now();
 	chrono::duration<double> elapsed_seconds = end - start;
@@ -147,5 +164,23 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // Unmap the shared memory object
+    if (munmap(ptr2, size) == -1) {
+        perror("munmap");
+        return 1;
+    }
+
+    // Close the shared memory file descriptor
+    if (close(shm_fd2) == -1) {
+        perror("close");
+        return 1;
+    }
+
+    // Unlink the shared memory object
+    if (shm_unlink(name2) == -1) {
+        perror("shm_unlink");
+        return 1;
+    }
+    
 	return 0;
 }

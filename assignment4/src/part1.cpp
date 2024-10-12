@@ -3,9 +3,46 @@
 #include <cstdint>
 #include <cmath>
 #include <chrono>
-#include <ctime>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+#define SIZE 3
 
 using namespace std;
+
+void send_image(int pipefd,struct image_t *image) {
+    cout << "Sending Image: Height = " << image->height << " Width = " << image->width << endl;
+
+    write(pipefd,&(image->height),sizeof(int));
+    write(pipefd,&(image->width),sizeof(int));
+
+    for (int i=0;i<image->height;i++) {
+        for (int j=0;j<image->width;j++) {
+            write(pipefd,image->image_pixels[i][j], 3*sizeof(uint8_t));
+        }
+    }
+}
+
+struct image_t *receive_image(int pipefd) {
+    struct image_t *image = new struct image_t;
+
+    read(pipefd,&(image->height),sizeof(int));
+    read(pipefd,&(image->width),sizeof(int));
+
+    // cout << "Receiving Image: Height = " << image->height << " Width = " << image->width << endl;
+
+	image->image_pixels = new uint8_t**[image->height];
+	for(int i = 0; i < image->height; i++)
+	{
+		image->image_pixels[i] = new uint8_t*[image->width];
+		for(int j = 0; j < image->width; j++){
+			image->image_pixels[i][j] = new uint8_t[3];
+			read(pipefd,image->image_pixels[i][j],3*sizeof(uint8_t));
+		}
+	}
+    return image;
+}
 
 struct image_t *S1_smoothen(struct image_t *input_image)
 {
@@ -149,35 +186,79 @@ int main(int argc, char **argv)
 
 	chrono::time_point<std::chrono::high_resolution_clock> start, end;
 	start = chrono::high_resolution_clock::now();
-
+    
 	struct image_t *input_image = read_ppm_file(argv[1]);
 
-	
 	struct image_t *smoothened_image;
 	struct image_t *details_image;
 	struct image_t *sharpened_image;
 
-	for(int i=0;i<1000;i++){
-		smoothened_image = S1_smoothen(input_image);
-		details_image = S2_find_details(input_image, smoothened_image);
-		sharpened_image = S3_sharpen(input_image, details_image);
-	}
+	//pipe for s1 to s2
+	int pipefd1[2];
+	pipe(pipefd1);
 
-	// write_ppm_file(argv[2], smoothened_image);
+	pid_t child = fork();
 
-	write_ppm_file(argv[2], sharpened_image);
+    if(child > 0){ // process1  - s1
 
-	end = chrono::high_resolution_clock::now();
-	chrono::duration<double> elapsed_seconds = end - start;
-	// auto elapsed_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start); // nanoseconds
-    // auto elapsed_us = std::chrono::duration_cast<std::chrono::microseconds>(end - start); // microseconds
-    // auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end - start); // milliseconds
+		// chrono::time_point<std::chrono::high_resolution_clock> start, end;
+		// start = chrono::high_resolution_clock::now();
+    
+		// struct image_t *input_image = read_ppm_file(argv[1]);
+	
+		close(pipefd1[0]);
 
-	cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
-	// cout << "Time taken (milliseconds): " << elapsed_ms.count() << " ms\n";
-    // cout << "Time taken (microseconds): " << elapsed_us.count() << " µs\n";
-    // cout << "Time taken (nanoseconds): " << elapsed_ns.count() << " ns\n";
+		for(int i=0;i<SIZE;i++){
+			smoothened_image = S1_smoothen(input_image);
+			//cout << "Parent: Smoothened image created "<< i+1 << " - " << getpid() << endl;
+			send_image(pipefd1[1], smoothened_image);
+		}
+        
+		close(pipefd1[1]);
 
+		wait(NULL);
+		end = chrono::high_resolution_clock::now();
+		chrono::duration<double> elapsed_seconds = end - start;
 
+		cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
+    }
+    else{
+		//pipe for s2 to s3
+		int pipefd2[2]; 
+		pipe(pipefd2);
+
+        pid_t grandchild = fork();
+
+        if(grandchild > 0){ // process2  - s2
+			close(pipefd1[1]);
+			close(pipefd2[0]);
+
+			for(int i=0;i<SIZE;i++){
+				smoothened_image = receive_image(pipefd1[0]); // Receive smoothened image data
+				details_image = S2_find_details(input_image, smoothened_image);
+				//cout << "Child: Details image created " << i + 1 << " - " << getpid() << endl;
+				send_image(pipefd2[1], details_image); // Send details image data
+			}
+
+            close(pipefd1[0]); // Close the read end after receiving
+            close(pipefd2[1]); // Close the write end after sending		
+
+			wait(NULL); 
+        }
+        else{ 				// process3 - s3 + write
+			close(pipefd2[1]);
+
+			for (int i=0;i<SIZE;i++) {
+				details_image = receive_image(pipefd2[0]); // Receive details image data
+				sharpened_image = S3_sharpen(input_image, details_image);
+				//cout << "Grandchild: Sharpened image created " << i + 1 << " - " << getpid() << endl;
+			}
+
+            write_ppm_file(argv[2], sharpened_image); // Write the final sharpened image
+            close(pipefd2[0]);
+
+        }
+    }
+	//cout << "Process ID: " << getpid() << " is finishing." << endl;
 	return 0;
 }
