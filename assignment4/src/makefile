@@ -21,10 +21,10 @@ part1: ./1.out
 	./a1.out ../images/1.ppm ../images/output_part1.ppm
 
 part2_1: ./2_1.out
-	./a2.out ../images/1.ppm ../images/output_part1.ppm
+	./a2_1.out ../images/1.ppm ../images/output_part2_1.ppm
 
 part2_2: ./2_2.out
-	./a2_2s1.out ../images/1.ppm ../images/output_part1.ppm
+	./a2_2s1.out ../images/1.ppm ../images/output_part2_2.ppm
 
 
 clean:

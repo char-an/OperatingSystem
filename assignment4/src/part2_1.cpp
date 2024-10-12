@@ -7,12 +7,12 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define SIZE 3
+#define SIZE 1000
 
 using namespace std;
 
 void send_image(int pipefd,struct image_t *image) {
-    cout << "Sending Image: Height = " << image->height << " Width = " << image->width << endl;
+    //cout << "Sending Image: Height = " << image->height << " Width = " << image->width << endl;
 
     write(pipefd,&(image->height),sizeof(int));
     write(pipefd,&(image->width),sizeof(int));
