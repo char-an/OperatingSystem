@@ -97,9 +97,6 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    size_t size = input_image->height * input_image->width * 3 ;
-	cout << "Calculated size for shared memory: " << size << endl;
-
     // Resize the shared memory object to the desired size
     if (ftruncate(shm_fd2, size) == -1) {
         perror("ftruncate");
@@ -117,11 +114,11 @@ int main(int argc, char **argv)
 
     sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
 	sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
-	if(sem1 <= 0){
+	if(sem1 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
-	if(sem2 <= 0){
+	if(sem2 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
@@ -149,15 +146,15 @@ int main(int argc, char **argv)
         }
 
         details_image = S2_find_details(input_image,smoothened_image);
-
-        int check;
-		sem_getvalue(sem1, &check);
-		if(check<1){
-			sem_post(sem1);
-		}
-        else{
-            cout << "sem logic error" << endl;
-        }
+        sem_post(sem1);
+        // int check;
+		// sem_getvalue(sem1, &check);
+		// if(check<1){
+		// 	sem_post(sem1);
+		// }
+        // else{
+        //     cout << "sem logic error" << endl;
+        // }
     }
 
     // for (int i = 0; i < details_image->height; i++)
@@ -172,6 +169,25 @@ int main(int argc, char **argv)
 	end = chrono::high_resolution_clock::now();
 	chrono::duration<double> elapsed_seconds = end - start;
 	cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
+
+    if(sem_close(sem1)){
+		perror("sem_close");
+		return 1;
+	}
+
+    if(sem_unlink("/my_semaphore1")){
+		perror("sem_unlink");
+		return 1;
+	}
+	if(sem_close(sem2)){
+		perror("sem_close");
+		return 1;
+	}
+
+    if(sem_unlink("/my_semaphore2")){
+		perror("sem_unlink");
+		return 1;
+	}
 
     // Unmap the shared memory object
     if (munmap(ptr, size) == -1) {

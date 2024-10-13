@@ -113,11 +113,11 @@ int main(int argc, char **argv)
 
 	sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
 	sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
-	if(sem1 <= 0){
+	if(sem1 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
-	if(sem2 <= 0){
+	if(sem2 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
@@ -132,15 +132,15 @@ int main(int argc, char **argv)
 			}
 		}
 		cout << "Image written to shared memory successfully! (" << count + 1 << "/1000)" << endl;
-		//sem_post(sem2); //exit
-		int check;
-		sem_getvalue(sem2, &check);
-		if(check<1){
-			sem_post(sem2);
-		}
-		else{
-            cout << "sem logic error" << endl;
-        }
+		sem_post(sem2); //exit
+		// int check;
+		// sem_getvalue(sem2, &check);
+		// if(check<1){
+		// 	sem_post(sem2);
+		// }
+		// else{
+        //     cout << "sem logic error" << endl;
+        // }
 	}
 	
 
