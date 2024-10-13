@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#define SIZE 3
+#define SIZE 1
 
 struct image_t *S1_smoothen(struct image_t *input_image)
 {
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    size_t size = input_image->height * input_image->width * 3 ;
+    size_t size = input_image->height * input_image->width * 3 + 10;
 	cout << "Calculated size for shared memory: " << size << endl;
 
     // Resize the shared memory object to the desired size
@@ -112,37 +112,43 @@ int main(int argc, char **argv)
 	}	
 
 	sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
-	// sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
+
 	if(sem1 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
-	// if(sem2 == SEM_FAILED){
-    //     perror("semaphore open failed");
-	// 	return 1;
-	// }
 
 	int tmp;
 
 	//write data to the shared memory
 	for(int count=0;count<SIZE;count++){
-		smoothened_image = S1_smoothen(input_image);
+		cout << "inside count s1" << endl;
 
-		tmp = 0;
-    	while(tmp == 0){
-			sem_wait(sem1);
-			memcpy(&tmp, ptr+sizeof(int), sizeof(int));
-			sem_post(sem1);
-    	}
+		smoothened_image = S1_smoothen(input_image);
+		cout << "inside smooth s1" << endl;
+		if(count!=0){
+			tmp = 0;
+			while(tmp == 0){
+				cout << "inside while s1" << endl;
+				sem_wait(sem1);
+				memcpy(&tmp, ptr+sizeof(int), sizeof(int));
+				sem_post(sem1);
+			}
+		}
+		
+		cout << "outside sem s1" << endl;
 		sem_wait(sem1);
-		tmp = 1;
-    	memcpy(ptr, &tmp, sizeof(int));
+		cout << "inside sem s1" << endl;
+		
 		for (int i = 0; i < smoothened_image->height; i++){
 			for (int j = 0; j < smoothened_image->width; j++){
 				memcpy((char *)ptr + (i*smoothened_image->width + j)*3 + 10, smoothened_image->image_pixels[i][j], 3);
 			}
 		}
 		cout << "Image written to shared memory successfully! (" << count + 1 << "/1000)" << endl;
+
+		tmp = 1;
+    	memcpy(ptr, &tmp, sizeof(int));
 
 		tmp = 0;
     	memcpy(&tmp, ptr + sizeof(int), sizeof(int));

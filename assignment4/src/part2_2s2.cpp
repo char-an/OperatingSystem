@@ -13,7 +13,7 @@
 
 using namespace std;
 
-#define SIZE 3
+#define SIZE 1
 
 struct image_t *S2_find_details(struct image_t *input_image, struct image_t *smoothened_image)
 {
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    size_t size = input_image->height * input_image->width * 3 ;
+    size_t size = input_image->height * input_image->width * 3 + 10;
 	cout << "Calculated size for shared memory: " << size << endl;
 
     // Resize the shared memory object to the desired size
@@ -124,14 +124,18 @@ int main(int argc, char **argv)
 	// }
     int tmp;
     for(int count =0;count<SIZE;count++){
-        // Reconstruct smoothened_image from shared memory
+        cout << "inside count s2" << endl;
+
         tmp = 0;
         while(tmp == 0){
+            cout << "inside while s2" << endl;
             sem_wait(sem1);
             memcpy(&tmp, ptr, sizeof(int));
             sem_post(sem1);
         }
         sem_wait(sem1);
+        cout << "inside sem s2" << endl;
+        // Reconstruct smoothened_image from shared memory
         smoothened_image = new image_t;
         smoothened_image->height = input_image->height;
         smoothened_image->width = input_image->width;
