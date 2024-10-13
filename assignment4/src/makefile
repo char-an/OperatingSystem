@@ -19,14 +19,14 @@
 # 	./a.out ../images/$(INPUT).ppm ../images/$(OUTPUT).ppm
 
 part1: ./1.out
-	./a1.out ../images/6.ppm ../images/output_part1.ppm
+	./a1.out ../images/1.ppm ../images/output_part1.ppm
 
 part2_1: ./2_1.out
-	./a2_1.out ../images/6.ppm ../images/output_part2_1.ppm
+	./a2_1.out ../images/1.ppm ../images/output_part2_1.ppm
 
 part2_2: ./2_2.out
-	./a2_2s1.out ../images/6.ppm ../images/output_part2_2s1.ppm
-	./a2_2s2.out ../images/6.ppm ../images/output_part2_2s2.ppm
+	./a2_2s1.out ../images/1.ppm ../images/output_part2_2s1.ppm
+	./a2_2s2.out ../images/1.ppm ../images/output_part2_2s2.ppm
 
 
 clean:
