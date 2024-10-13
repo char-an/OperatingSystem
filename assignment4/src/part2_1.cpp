@@ -6,39 +6,61 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <zlib.h>
 
+#define SIZE 500
 
 using namespace std;
 
-void send_image(int pipefd, struct image_t *image) {
-    cout << "Sending Image: Height = " << image->height << ", Width = " << image->width << endl;
+uint32_t hasher(uint8_t ***pixels,int height,int width){
+	uint32_t hashed=crc32(0L,Z_NULL,0); //initialize hash method
 
-    write(pipefd, &(image->height), sizeof(int));
-    write(pipefd, &(image->width), sizeof(int));
+	for(int i=0;i<height;i++){
+		for(int j=0;j<width;j++){
+			hashed=crc32(hashed,reinterpret_cast<const Bytef*>(pixels[i][j]),3*sizeof(uint8_t));
+		}
+	}
+	return hashed;
+}
 
-    for (int i = 0; i < image->height; i++) {
-        for (int j = 0; j < image->width; j++) {
-            write(pipefd, image->image_pixels[i][j], 3 * sizeof(uint8_t)); //RGB
+void send_image(int pipefd,struct image_t *image) {
+    //cout << "Sending Image: Height = " << image->height << " Width = " << image->width << endl;
+
+    write(pipefd,&(image->height),sizeof(int));
+    write(pipefd,&(image->width),sizeof(int));
+
+    for (int i=0;i<image->height;i++) {
+        for (int j=0;j<image->width;j++) {
+            write(pipefd,image->image_pixels[i][j], 3*sizeof(uint8_t));
         }
     }
+	uint32_t hashed=hasher(image->image_pixels,image->height,image->width);
+	write(pipefd,&hashed,sizeof(uint32_t));
 }
 
 struct image_t *receive_image(int pipefd) {
     struct image_t *image = new struct image_t;
 
-    read(pipefd, &(image->height), sizeof(int));
-    read(pipefd, &(image->width), sizeof(int));
+    read(pipefd,&(image->height),sizeof(int));
+    read(pipefd,&(image->width),sizeof(int));
 
-    cout << "Receiving Image: Height = " << image->height << ", Width = " << image->width << endl;
+    // cout << "Receiving Image: Height = " << image->height << " Width = " << image->width << endl;
 
-    image->image_pixels = new uint8_t **[image->height];
-    for (int i = 0; i < image->height; i++) {
-        image->image_pixels[i] = new uint8_t *[image->width];
-        for (int j = 0; j < image->width; j++) {
-            image->image_pixels[i][j] = new uint8_t[3];
-            read(pipefd, image->image_pixels[i][j], 3 * sizeof(uint8_t)); //RGB
-        }
-    }
+	image->image_pixels = new uint8_t**[image->height];
+	for(int i = 0; i < image->height; i++)
+	{
+		image->image_pixels[i] = new uint8_t*[image->width];
+		for(int j = 0; j < image->width; j++){
+			image->image_pixels[i][j] = new uint8_t[3];
+			read(pipefd,image->image_pixels[i][j],3*sizeof(uint8_t));
+		}
+	}
+	uint32_t get_hashed;
+	read(pipefd,&get_hashed,sizeof(uint32_t));
+	uint32_t curr_hashed=hasher(image->image_pixels,image->height,image->width);
+	if(get_hashed!=curr_hashed) cout << "image corrupted" << endl;
+	// else cout << "image intact" << endl;
+	//not sure what logic to implement incase of failed pipe so left it empty as it was not specified to me what to do ;] 
     return image;
 }
 
@@ -181,6 +203,9 @@ int main(int argc, char **argv)
 		cout << "usage: ./a.out <path-to-original-image> <path-to-transformed-image>\n\n";
 		exit(0);
 	}
+
+	chrono::time_point<std::chrono::high_resolution_clock> start, end;
+	start = chrono::high_resolution_clock::now();
     
 	struct image_t *input_image = read_ppm_file(argv[1]);
 
@@ -194,15 +219,28 @@ int main(int argc, char **argv)
 
 	pid_t child = fork();
 
-    if(child > 0){ // process1
+    if(child > 0){ // process1  - s1
+
+		// chrono::time_point<std::chrono::high_resolution_clock> start, end;
+		// start = chrono::high_resolution_clock::now();
+    
+		// struct image_t *input_image = read_ppm_file(argv[1]);
 	
 		close(pipefd1[0]);
-        smoothened_image = S1_smoothen(input_image);
-		cout << "Parent: Smoothened image created, sending to child..." << getpid() << endl;
-		send_image(pipefd1[1], smoothened_image);
+
+		for(int i=0;i<SIZE;i++){
+			smoothened_image = S1_smoothen(input_image);
+			//cout << "Parent: Smoothened image created "<< i+1 << " - " << getpid() << endl;
+			send_image(pipefd1[1], smoothened_image);
+		}
+        
 		close(pipefd1[1]);
 
-		wait(NULL); 
+		wait(NULL);
+		end = chrono::high_resolution_clock::now();
+		chrono::duration<double> elapsed_seconds = end - start;
+
+		cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
     }
     else{
 		//pipe for s2 to s3
@@ -211,32 +249,36 @@ int main(int argc, char **argv)
 
         pid_t grandchild = fork();
 
-        if(grandchild > 0){ // process2
+        if(grandchild > 0){ // process2  - s2
 			close(pipefd1[1]);
 			close(pipefd2[0]);
 
-			smoothened_image = receive_image(pipefd1[0]); // Receive smoothened image data
-            details_image = S2_find_details(input_image, smoothened_image);
-			cout << "Child: Details image created, sending to grandchild..." << getpid() << endl;
-            send_image(pipefd2[1], details_image); // Send details image data
+			for(int i=0;i<SIZE;i++){
+				smoothened_image = receive_image(pipefd1[0]); // Receive smoothened image data
+				details_image = S2_find_details(input_image, smoothened_image);
+				//cout << "Child: Details image created " << i + 1 << " - " << getpid() << endl;
+				send_image(pipefd2[1], details_image); // Send details image data
+			}
 
             close(pipefd1[0]); // Close the read end after receiving
             close(pipefd2[1]); // Close the write end after sending		
 
 			wait(NULL); 
         }
-        else{ 				// process3
+        else{ 				// process3 - s3 + write
 			close(pipefd2[1]);
 
-			details_image = receive_image(pipefd2[0]); // Receive details image data
-            sharpened_image = S3_sharpen(input_image, details_image);
-			cout << "Grandchild: Sharpened image created, writing to file..." << getpid() << endl;
-            write_ppm_file(argv[2], sharpened_image); // Write the final sharpened image
+			for (int i=0;i<SIZE;i++) {
+				details_image = receive_image(pipefd2[0]); // Receive details image data
+				sharpened_image = S3_sharpen(input_image, details_image);
+				//cout << "Grandchild: Sharpened image created " << i + 1 << " - " << getpid() << endl;
+			}
 
+            write_ppm_file(argv[2], sharpened_image); // Write the final sharpened image
             close(pipefd2[0]);
 
         }
     }
-	cout << "Process ID: " << getpid() << " is finishing." << endl;
+	//cout << "Process ID: " << getpid() << " is finishing." << endl;
 	return 0;
 }
