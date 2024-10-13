@@ -8,8 +8,12 @@
 #include<fcntl.h>
 #include<sys/stat.h>
 #include<unistd.h>
+#include<semaphore.h>
+#include<string.h>
 
 using namespace std;
+
+#define SIZE 3
 
 struct image_t *S1_smoothen(struct image_t *input_image)
 {
@@ -93,7 +97,6 @@ int main(int argc, char **argv)
     }
 
     size_t size = input_image->height * input_image->width * 3 ;
-	//size_t size = 1024;
 	cout << "Calculated size for shared memory: " << size << endl;
 
     // Resize the shared memory object to the desired size
@@ -106,28 +109,66 @@ int main(int argc, char **argv)
     if (ptr == MAP_FAILED) {
         perror("mmap");
         return 1;
+	}	
+
+	sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
+	sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
+	if(sem1 <= 0){
+        perror("semaphore open failed");
+		return 1;
+	}
+	if(sem2 <= 0){
+        perror("semaphore open failed");
+		return 1;
 	}
 
-	// for(int i=0;i<1000;i++){
-	// 	smoothened_image = S1_smoothen(input_image);
-    //     sprintf((char *)ptr, "Hello, shared memory!");
-	// }
-
-	smoothened_image = S1_smoothen(input_image);
-
-    for (int i = 0; i < smoothened_image->height; i++)
-    {
-        for (int j = 0; j < smoothened_image->width; j++)
-        {
-           	memcpy((char *)ptr + (i * smoothened_image->width + j) * 3, smoothened_image->image_pixels[i][j], 3);
+	//write data to the shared memory
+	for(int count=0;count<SIZE;count++){
+		smoothened_image = S1_smoothen(input_image);
+		sem_wait(sem1);
+		for (int i = 0; i < smoothened_image->height; i++){
+			for (int j = 0; j < smoothened_image->width; j++){
+				memcpy((char *)ptr + (i*smoothened_image->width + j)*3, smoothened_image->image_pixels[i][j], 3);
+			}
+		}
+		cout << "Image written to shared memory successfully! (" << count + 1 << "/1000)" << endl;
+		//sem_post(sem2); //exit
+		int check;
+		sem_getvalue(sem2, &check);
+		if(check<1){
+			sem_post(sem2);
+		}
+		else{
+            cout << "sem logic error" << endl;
         }
-    }
-    cout << "Image written to shared memory successfully!\n";
+	}
+	
+
 	// write_ppm_file(argv[2], sharpened_image);
 
 	end = chrono::high_resolution_clock::now();
 	chrono::duration<double> elapsed_seconds = end - start;
 	cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
+
+
+	if(sem_close(sem1)){
+		perror("sem_close");
+		return 1;
+	}
+
+    if(sem_unlink("/my_semaphore1")){
+		perror("sem_unlink");
+		return 1;
+	}
+	if(sem_close(sem2)){
+		perror("sem_close");
+		return 1;
+	}
+
+    if(sem_unlink("/my_semaphore2")){
+		perror("sem_unlink");
+		return 1;
+	}
 
     // Unmap the shared memory object
     if (munmap(ptr, size) == -1) {

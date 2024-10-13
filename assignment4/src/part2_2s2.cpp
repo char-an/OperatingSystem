@@ -8,8 +8,12 @@
 #include<fcntl.h>
 #include<sys/stat.h>
 #include<unistd.h>
+#include<semaphore.h>
+#include<string.h>
 
 using namespace std;
+
+#define SIZE 3
 
 struct image_t *S2_find_details(struct image_t *input_image, struct image_t *smoothened_image)
 {
@@ -111,36 +115,59 @@ int main(int argc, char **argv)
     // Cast ptr to uint8_t* for indexing
     uint8_t* shared_memory = static_cast<uint8_t*>(ptr);
 
-    // Reconstruct smoothened_image from shared memory
-    smoothened_image = new image_t;
-    smoothened_image->height = input_image->height;
-    smoothened_image->width = input_image->width;
-    smoothened_image->image_pixels = new uint8_t** [smoothened_image->height];
-    for (int i = 0; i < smoothened_image->height; i++)
-    {
-        smoothened_image->image_pixels[i] = new uint8_t* [smoothened_image->width];
-        for (int j = 0; j < smoothened_image->width; j++)
-        {
-            smoothened_image->image_pixels[i][j] = new uint8_t[3];
+    sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
+	sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
+	if(sem1 <= 0){
+        perror("semaphore open failed");
+		return 1;
+	}
+	if(sem2 <= 0){
+        perror("semaphore open failed");
+		return 1;
+	}
 
-            // Read RGB values from shared memory
-            int index = (i * smoothened_image->width + j) * 3;
-            smoothened_image->image_pixels[i][j][0] = shared_memory[index];     // Red
-            smoothened_image->image_pixels[i][j][1] = shared_memory[index + 1]; // Green
-            smoothened_image->image_pixels[i][j][2] = shared_memory[index + 2]; // Blue
+    for(int count =0;count<SIZE;count++){
+        // Reconstruct smoothened_image from shared memory
+        sem_wait(sem2);
+        smoothened_image = new image_t;
+        smoothened_image->height = input_image->height;
+        smoothened_image->width = input_image->width;
+        smoothened_image->image_pixels = new uint8_t** [smoothened_image->height];
+        for (int i = 0; i < smoothened_image->height; i++)
+        {
+            smoothened_image->image_pixels[i] = new uint8_t* [smoothened_image->width];
+            for (int j = 0; j < smoothened_image->width; j++)
+            {
+                smoothened_image->image_pixels[i][j] = new uint8_t[3];
+
+                // Read RGB values from shared memory
+                int index = (i * smoothened_image->width + j) * 3;
+                smoothened_image->image_pixels[i][j][0] = shared_memory[index];     // Red
+                smoothened_image->image_pixels[i][j][1] = shared_memory[index + 1]; // Green
+                smoothened_image->image_pixels[i][j][2] = shared_memory[index + 2]; // Blue
+            }
+        }
+
+        details_image = S2_find_details(input_image,smoothened_image);
+
+        int check;
+		sem_getvalue(sem1, &check);
+		if(check<1){
+			sem_post(sem1);
+		}
+        else{
+            cout << "sem logic error" << endl;
         }
     }
 
-    details_image = S2_find_details(input_image,smoothened_image);
-
-    for (int i = 0; i < details_image->height; i++)
-    {
-        for (int j = 0; j < details_image->width; j++)
-        {
-           	memcpy((char *)ptr2 + (i * details_image->width + j) * 3, details_image->image_pixels[i][j], 3);
-        }
-    }
-    cout << "Image written to shared memory successfully!\n";
+    // for (int i = 0; i < details_image->height; i++)
+    // {
+    //     for (int j = 0; j < details_image->width; j++)
+    //     {
+    //        	memcpy((char *)ptr2 + (i * details_image->width + j) * 3, details_image->image_pixels[i][j], 3);
+    //     }
+    // }
+    // cout << "Image written to shared memory successfully!\n";
 
 	end = chrono::high_resolution_clock::now();
 	chrono::duration<double> elapsed_seconds = end - start;
