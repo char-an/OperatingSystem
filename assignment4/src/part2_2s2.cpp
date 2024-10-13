@@ -113,19 +113,25 @@ int main(int argc, char **argv)
     uint8_t* shared_memory = static_cast<uint8_t*>(ptr);
 
     sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
-	sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
+	// sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
 	if(sem1 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
-	if(sem2 == SEM_FAILED){
-        perror("semaphore open failed");
-		return 1;
-	}
-
+	// if(sem2 == SEM_FAILED){
+    //     perror("semaphore open failed");
+	// 	return 1;
+	// }
+    int tmp;
     for(int count =0;count<SIZE;count++){
         // Reconstruct smoothened_image from shared memory
-        sem_wait(sem2);
+        tmp = 0;
+        while(tmp == 0){
+            sem_wait(sem1);
+            memcpy(&tmp, ptr, sizeof(int));
+            sem_post(sem1);
+        }
+        sem_wait(sem1);
         smoothened_image = new image_t;
         smoothened_image->height = input_image->height;
         smoothened_image->width = input_image->width;
@@ -138,14 +144,21 @@ int main(int argc, char **argv)
                 smoothened_image->image_pixels[i][j] = new uint8_t[3];
 
                 // Read RGB values from shared memory
-                int index = (i * smoothened_image->width + j) * 3;
+                int index = (i * smoothened_image->width + j) * 3 + 10;
                 smoothened_image->image_pixels[i][j][0] = shared_memory[index];     // Red
                 smoothened_image->image_pixels[i][j][1] = shared_memory[index + 1]; // Green
                 smoothened_image->image_pixels[i][j][2] = shared_memory[index + 2]; // Blue
             }
         }
 
+        tmp = 1;
+        memcpy(&tmp, ptr + sizeof(int), sizeof(int));
+        
         details_image = S2_find_details(input_image,smoothened_image);
+
+        tmp = 0;
+        memcpy(ptr, &tmp, sizeof(int));
+
         sem_post(sem1);
         // int check;
 		// sem_getvalue(sem1, &check);
@@ -179,15 +192,15 @@ int main(int argc, char **argv)
 		perror("sem_unlink");
 		return 1;
 	}
-	if(sem_close(sem2)){
-		perror("sem_close");
-		return 1;
-	}
+	// if(sem_close(sem2)){
+	// 	perror("sem_close");
+	// 	return 1;
+	// }
 
-    if(sem_unlink("/my_semaphore2")){
-		perror("sem_unlink");
-		return 1;
-	}
+    // if(sem_unlink("/my_semaphore2")){
+	// 	perror("sem_unlink");
+	// 	return 1;
+	// }
 
     // Unmap the shared memory object
     if (munmap(ptr, size) == -1) {

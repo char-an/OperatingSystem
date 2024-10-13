@@ -112,35 +112,41 @@ int main(int argc, char **argv)
 	}	
 
 	sem_t * sem1= sem_open("/my_semaphore1", O_CREAT, 0666, 1);
-	sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
+	// sem_t * sem2= sem_open("/my_semaphore2", O_CREAT, 0666, 1);
 	if(sem1 == SEM_FAILED){
         perror("semaphore open failed");
 		return 1;
 	}
-	if(sem2 == SEM_FAILED){
-        perror("semaphore open failed");
-		return 1;
-	}
+	// if(sem2 == SEM_FAILED){
+    //     perror("semaphore open failed");
+	// 	return 1;
+	// }
+
+	int tmp;
 
 	//write data to the shared memory
 	for(int count=0;count<SIZE;count++){
 		smoothened_image = S1_smoothen(input_image);
+
+		tmp = 0;
+    	while(tmp == 0){
+			sem_wait(sem1);
+			memcpy(&tmp, ptr+sizeof(int), sizeof(int));
+			sem_post(sem1);
+    	}
 		sem_wait(sem1);
+		tmp = 1;
+    	memcpy(ptr, &tmp, sizeof(int));
 		for (int i = 0; i < smoothened_image->height; i++){
 			for (int j = 0; j < smoothened_image->width; j++){
-				memcpy((char *)ptr + (i*smoothened_image->width + j)*3, smoothened_image->image_pixels[i][j], 3);
+				memcpy((char *)ptr + (i*smoothened_image->width + j)*3 + 10, smoothened_image->image_pixels[i][j], 3);
 			}
 		}
 		cout << "Image written to shared memory successfully! (" << count + 1 << "/1000)" << endl;
-		sem_post(sem2); //exit
-		// int check;
-		// sem_getvalue(sem2, &check);
-		// if(check<1){
-		// 	sem_post(sem2);
-		// }
-		// else{
-        //     cout << "sem logic error" << endl;
-        // }
+
+		tmp = 0;
+    	memcpy(&tmp, ptr + sizeof(int), sizeof(int));
+		sem_post(sem1);
 	}
 	
 
@@ -160,15 +166,15 @@ int main(int argc, char **argv)
 		perror("sem_unlink");
 		return 1;
 	}
-	if(sem_close(sem2)){
-		perror("sem_close");
-		return 1;
-	}
+	// if(sem_close(sem2)){
+	// 	perror("sem_close");
+	// 	return 1;
+	// }
 
-    if(sem_unlink("/my_semaphore2")){
-		perror("sem_unlink");
-		return 1;
-	}
+    // if(sem_unlink("/my_semaphore2")){
+	// 	perror("sem_unlink");
+	// 	return 1;
+	// }
 
     // Unmap the shared memory object
     if (munmap(ptr, size) == -1) {
