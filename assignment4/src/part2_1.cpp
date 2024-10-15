@@ -197,9 +197,9 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 }
 
 void free_image(struct image_t *image) {
-    if (image != nullptr) {
-        for (int i = 0; i < image->height; i++) {
-            for (int j = 0; j < image->width; j++) {
+    if(image!=nullptr){
+        for(int i=0;i<image->height;i++){
+            for(int j=0;j<image->width;j++){
                 delete[] image->image_pixels[i][j]; 
             }
             delete[] image->image_pixels[i]; 
