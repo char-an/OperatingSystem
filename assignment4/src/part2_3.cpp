@@ -146,6 +146,7 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 
 
 void thread_s1(struct image_t *input_image, struct image_t **smoothened_image){
+	cout<<"Thread s1"<<endl;
     *smoothened_image = S1_smoothen(input_image);
     Is_s1_done.store(true);
 }
@@ -155,7 +156,7 @@ void thread_s2(struct image_t *input_image, struct image_t **smoothened_image, s
     while (!Is_s1_done.load()) { 
         this_thread::yield(); 
     }
-    
+    cout<<"thread_s2"<<endl;
     *details_image = S2_find_details(input_image, *smoothened_image);
     Is_s2_done.store(true);
 }
@@ -165,7 +166,7 @@ void thread_s3(struct image_t *input_image, struct image_t **details_image, stru
     while (!Is_s2_done.load()) { 
         this_thread::yield(); 
     }
-
+	cout<<"thread_s3"<<endl;
     *sharpened_image = S3_sharpen(input_image, *details_image);
 }
 
