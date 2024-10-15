@@ -196,7 +196,7 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 	return image;
 }
 
-void free_image(struct image_t *image) {
+void free_image(struct image_t *image){
     if(image!=nullptr){
         for(int i=0;i<image->height;i++){
             for(int j=0;j<image->width;j++){
