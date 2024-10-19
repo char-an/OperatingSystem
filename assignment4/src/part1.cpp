@@ -139,6 +139,19 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 	return image;
 }
 
+void free_image(struct image_t *image){
+    if(image!=nullptr){
+        for(int i=0;i<image->height;i++){
+            for(int j=0;j<image->width;j++){
+                delete[] image->image_pixels[i][j]; 
+            }
+            delete[] image->image_pixels[i]; 
+        }
+        delete[] image->image_pixels; 
+        delete image; 
+    }
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3)
@@ -161,6 +174,11 @@ int main(int argc, char **argv)
 		smoothened_image = S1_smoothen(input_image);
 		details_image = S2_find_details(input_image, smoothened_image);
 		sharpened_image = S3_sharpen(input_image, details_image);
+		free_image(smoothened_image);
+		free_image(details_image);
+		if(i!=999){
+			free_image(sharpened_image);
+		}
 	}
 
 	write_ppm_file(argv[2], sharpened_image);
@@ -168,6 +186,5 @@ int main(int argc, char **argv)
 	end = chrono::high_resolution_clock::now();
 	chrono::duration<double> elapsed_seconds = end - start;
 	cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
-
 	return 0;
 }

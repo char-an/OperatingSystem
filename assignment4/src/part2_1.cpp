@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <zlib.h>
 
-#define SIZE 500
+#define SIZE 1000
 
 using namespace std;
 
@@ -196,6 +196,19 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 	return image;
 }
 
+void free_image(struct image_t *image){
+    if(image!=nullptr){
+        for(int i=0;i<image->height;i++){
+            for(int j=0;j<image->width;j++){
+                delete[] image->image_pixels[i][j]; 
+            }
+            delete[] image->image_pixels[i]; 
+        }
+        delete[] image->image_pixels; 
+        delete image; 
+    }
+}
+
 int main(int argc, char **argv)
 {
 	if (argc != 3)
@@ -232,6 +245,7 @@ int main(int argc, char **argv)
 			smoothened_image = S1_smoothen(input_image);
 			//cout << "Parent: Smoothened image created "<< i+1 << " - " << getpid() << endl;
 			send_image(pipefd1[1], smoothened_image);
+			free_image(smoothened_image);
 		}
         
 		close(pipefd1[1]);
@@ -258,6 +272,8 @@ int main(int argc, char **argv)
 				details_image = S2_find_details(input_image, smoothened_image);
 				//cout << "Child: Details image created " << i + 1 << " - " << getpid() << endl;
 				send_image(pipefd2[1], details_image); // Send details image data
+				free_image(smoothened_image);
+				free_image(details_image);
 			}
 
             close(pipefd1[0]); // Close the read end after receiving
@@ -272,9 +288,13 @@ int main(int argc, char **argv)
 				details_image = receive_image(pipefd2[0]); // Receive details image data
 				sharpened_image = S3_sharpen(input_image, details_image);
 				//cout << "Grandchild: Sharpened image created " << i + 1 << " - " << getpid() << endl;
+				free_image(details_image);
+				if(i!=SIZE-1) 
+					free_image(sharpened_image);
 			}
 
             write_ppm_file(argv[2], sharpened_image); // Write the final sharpened image
+			free_image(sharpened_image);
             close(pipefd2[0]);
 
         }
