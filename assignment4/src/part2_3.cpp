@@ -3,9 +3,14 @@
 #include <cstdint>
 #include <cmath>
 #include <chrono>
-#include <ctime>
+#include <atomic>
+#include <thread>
 
 using namespace std;
+
+// atomic flages for synchronization
+atomic<bool> Is_s1_done(false);
+atomic<bool> Is_s2_done(false);
 
 struct image_t *S1_smoothen(struct image_t *input_image)
 {
@@ -139,6 +144,29 @@ struct image_t *S3_sharpen(struct image_t *input_image, struct image_t *details_
 	return image;
 }
 
+
+void thread_s1(struct image_t *input_image, struct image_t **smoothened_image){
+    *smoothened_image = S1_smoothen(input_image);
+    Is_s1_done.store(true);
+}
+
+void thread_s2(struct image_t *input_image, struct image_t **smoothened_image, struct image_t **details_image){
+    // thread s2 will wait until s1 completes
+    while (!Is_s1_done.load()) { 
+        this_thread::yield(); 
+    }
+    *details_image = S2_find_details(input_image, *smoothened_image);
+    Is_s2_done.store(true);
+}
+
+void thread_s3(struct image_t *input_image, struct image_t **details_image, struct image_t **sharpened_image){
+    // thread s3 will wait until s2 completes 
+    while (!Is_s2_done.load()) { 
+        this_thread::yield(); 
+    }
+    *sharpened_image = S3_sharpen(input_image, *details_image);
+}
+
 void free_image(struct image_t *image){
     if(image!=nullptr){
         for(int i=0;i<image->height;i++){
@@ -154,37 +182,47 @@ void free_image(struct image_t *image){
 
 int main(int argc, char **argv)
 {
-	if (argc != 3)
-	{
-		cout << "usage: ./a.out <path-to-original-image> <path-to-transformed-image>\n\n";
-		exit(0);
-	}
+    if (argc != 3)
+    {
+        cout << "usage: ./a.out <path-to-original-image> <path-to-transformed-image>\n\n";
+        exit(0);
+    }
 
-	chrono::time_point<std::chrono::high_resolution_clock> start, end;
-	start = chrono::high_resolution_clock::now();
+    chrono::time_point<std::chrono::high_resolution_clock> start, end;
+    start = chrono::high_resolution_clock::now();
+    
+    struct image_t *input_image = read_ppm_file(argv[1]);
 
-	struct image_t *input_image = read_ppm_file(argv[1]);
+    struct image_t *smoothened_image;
+    struct image_t *details_image;
+    struct image_t *sharpened_image;
 
-	
-	struct image_t *smoothened_image;
-	struct image_t *details_image;
-	struct image_t *sharpened_image;
+    for(int i=0; i<1000; i++){
+        // in the starting of each iterations, we will lock s2 and s3 from making any further progress until s1 and s2 are completed resp.
+        Is_s1_done.store(false);
+        Is_s2_done.store(false);
 
-	for(int i=0;i<1000;i++){
-		smoothened_image = S1_smoothen(input_image);
-		details_image = S2_find_details(input_image, smoothened_image);
-		sharpened_image = S3_sharpen(input_image, details_image);
+        // creating threads for S1, S2 and S3
+        thread t1(thread_s1, input_image, &smoothened_image);
+        thread t2(thread_s2, input_image, &smoothened_image, &details_image);
+        thread t3(thread_s3, input_image, &details_image, &sharpened_image);
+
+        t1.join();
+        t2.join();
+        t3.join();
+        // using .join(), we will wait for each thread to be finished.
 		free_image(smoothened_image);
 		free_image(details_image);
 		if(i!=999){
 			free_image(sharpened_image);
 		}
-	}
+    }
 
-	write_ppm_file(argv[2], sharpened_image);
+    write_ppm_file(argv[2], sharpened_image);
+	free_image(sharpened_image);
+    end = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed_seconds = end - start;
+    cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
 
-	end = chrono::high_resolution_clock::now();
-	chrono::duration<double> elapsed_seconds = end - start;
-	cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
-	return 0;
+    return 0;
 }
