@@ -4,7 +4,7 @@ build-sharpen: ./a.out
 	g++ -g image_sharpener.cpp libppm.cpp
 
 run-sharpen: ./a.out
-	./a.out ../images/$(INPUT).ppm ../images/$(OUTPUT).ppm
+	./a.out ../images/1.ppm ../images/1_out.ppm
 
 clean:
 	rm a.out
