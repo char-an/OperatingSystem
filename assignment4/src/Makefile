@@ -11,7 +11,7 @@
 	g++ -g -w part2_3.cpp libppm.cpp -o a2_3.out
 
 part1: ./1.out
-	./a1.out ../images/1.ppm ../images/output_part6.ppm
+	./a1.out ../images/1.ppm ../images/output_part1.ppm
 
 part2_1: ./2_1.out
 	./a2_1.out ../images/1.ppm ../images/output_part2_1.ppm

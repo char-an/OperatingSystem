@@ -214,7 +214,6 @@ int main(int argc, char **argv)
 	free_image(sharpened_image);
 	free_image(input_image);
     
-
     end = chrono::high_resolution_clock::now();
     chrono::duration<double> elapsed_seconds = end - start;
     cout << "time taken: " << elapsed_seconds.count() << " seconds" << endl;
