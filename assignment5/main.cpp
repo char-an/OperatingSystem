@@ -4,10 +4,13 @@
 #include <unordered_map>
 #include <vector>
 #include <cstdint>
+#include <map>
+#include <string>
 
 using namespace std;
 
 int globalPageFault;
+string toBinaryString(uint64_t num);
 
 class Process
 {
@@ -19,11 +22,13 @@ public:
     Process(int ProcessId)
     {
         this->ProcessId = ProcessId;
+        this->localPageFault = 0;
     }
 
     void Map(uint64_t logicalAddress)
     {
-        PageTable.insert({logicalAddress, 0});
+        //PageTable.insert({logicalAddress, 0});
+        PageTable[logicalAddress] = 0;
     }
 
     int getProcessNumber()
@@ -71,6 +76,38 @@ public:
         }
         return nullptr;
     }
+
+    void checkPageTable(int ProcessId,uint64_t logicalAddress){
+        Process *process = getProcessByProcessNumber(ProcessId);
+
+        if (process == nullptr)
+        {
+            Process newProcess(ProcessId);
+            ProcessList.push_back(newProcess);
+
+            process = &ProcessList.back();
+        }
+
+        string binary = toBinaryString(logicalAddress);
+        cout << "Logical address : "<< binary << endl;
+        // uint64_t p = stoi(binary.substr(0,52), nullptr, 2); //change depending on page size
+        // uint64_t d = stoi(binary.substr(52,12), nullptr,2);  //change depending on page size
+        uint64_t p = stoull(binary.substr(0, 52), nullptr, 2);
+        uint64_t d = stoull(binary.substr(52, 12), nullptr, 2);
+
+        cout << "Page number : "<< p << endl;
+        cout << "Offset : "<< d << endl;
+
+
+        auto it = process->PageTable.find(p);
+        if(it!=process->PageTable.end()){
+            cout << "Found!" << endl;
+        }else{
+            cout << "pagefault" << endl;
+            process->PageTable[p] = 0; //temp
+        }
+    }
+
 };
 
 class PhysicalMemory
@@ -79,7 +116,7 @@ class PhysicalMemory
 
 string toBinaryString(uint64_t num){
     string rep = "";
-    for(int i=63;i>=0;i++){
+    for(int i=63;i>=0;i--){
         int bit = num &(1 << i);
         if(bit==0){
             rep += '0';
@@ -126,8 +163,10 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            //cout << "ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
-            mm.allocateMemory(processId, logicalAddress);
+            cout << "ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
+            // mm.allocateMemory(processId, logicalAddress);
+            mm.checkPageTable(processId, logicalAddress);
+            
         }
     }
 
