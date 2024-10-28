@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <map>
 #include <string>
+#include <bitset>
 
 using namespace std;
 
@@ -115,18 +116,10 @@ class PhysicalMemory
 };
 
 string toBinaryString(uint64_t num){
-    string rep = "";
-    for(int i=63;i>=0;i--){
-        int bit = num &(1 << i);
-        if(bit==0){
-            rep += '0';
-        }
-        else{
-            rep+= '1';
-        }
-    }
-    return rep;
+    return bitset<64>(num).to_string();
 }
+
+//incorrect binary rep
 
 int main(int argc, char **argv)
 {
@@ -163,7 +156,7 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            cout << "ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
+            cout << "\n \n ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
             // mm.allocateMemory(processId, logicalAddress);
             mm.checkPageTable(processId, logicalAddress);
             
