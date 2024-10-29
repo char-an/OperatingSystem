@@ -7,6 +7,7 @@
 #include <map>
 #include <string>
 #include <bitset>
+#include <cmath>
 
 using namespace std;
 
@@ -99,7 +100,7 @@ public:
         int frameNumber = -1;
 
         int length = PhysicalMemory.size();
-        cout << "size of physical memory  " << length << endl;
+        //cout << "size of physical memory  " << length << endl;
         if(length <= noOfFrames){ // free
             PhysicalMemory[length] = p;
             frameNumber = length;
@@ -123,8 +124,10 @@ public:
 
         string binary = toBinaryString(logicalAddress);
         // cout << "Logical address : "<< binary << endl;
-        uint64_t p = stoull(binary.substr(0, 52), nullptr, 2);  // change depending on page size
-        uint64_t d = stoull(binary.substr(52, 12), nullptr, 2); //change depending on page size
+        int dSize = log2(pageSize);
+        int pSize = 64 - dSize;
+        uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);  // change depending on page size
+        uint64_t d = stoull(binary.substr(pSize, dSize), nullptr, 2); //change depending on page size
 
         cout << "Page number : "<< p << endl;
         cout << "Offset : "<< d << endl;
