@@ -69,9 +69,7 @@ public:
             process = &ProcessList.back();
         }
 
-        process->PageTable[p] = f; // for temp purpose
-
-        //process->Map(logicalAddress);
+        process->PageTable[p] = f;
     }
 
     Process *getProcessByProcessNumber(int ProcessNumber)
@@ -101,8 +99,11 @@ public:
         int frameNumber = -1;
 
         int length = PhysicalMemory.size();
+        cout << "size of physical memory  " << length << endl;
         if(length <= noOfFrames){ // free
+            PhysicalMemory[length] = p;
             frameNumber = length;
+            cout << "proces id : " << ProcessId << " frame no. : " << frameNumber << endl;
             allocateMemory(ProcessId,p,frameNumber);
         }else{                    // need to replace
 
