@@ -4,4 +4,4 @@ build:
 	g++ main.cpp -o main.out
 
 run: build
-	./main combined_short.trace
+	./main.out 4096 10 FIFO Global combined_short.trace

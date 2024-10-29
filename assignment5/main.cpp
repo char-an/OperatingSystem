@@ -10,6 +10,11 @@
 
 using namespace std;
 
+int pageSize;
+int noOfFrames;
+string replacementPolicy;
+string allocationPolicy;
+
 int globalPageFault;
 string toBinaryString(uint64_t num);
 
@@ -28,7 +33,7 @@ public:
 
     void Map(uint64_t logicalAddress)
     {
-        //PageTable.insert({logicalAddress, 0});
+        // PageTable.insert({logicalAddress, 0});
         PageTable[logicalAddress] = 0;
     }
 
@@ -37,11 +42,13 @@ public:
         return this->ProcessId;
     }
 
-    void incrementLocal(){
+    void incrementLocal()
+    {
         this->localPageFault++;
     }
 
-    int getLocal(){
+    int getLocal()
+    {
         return this->localPageFault;
     }
 };
@@ -78,7 +85,8 @@ public:
         return nullptr;
     }
 
-    void checkPageTable(int ProcessId,uint64_t logicalAddress){
+    void checkPageTable(int ProcessId, uint64_t logicalAddress)
+    {
         Process *process = getProcessByProcessNumber(ProcessId);
 
         if (process == nullptr)
@@ -90,46 +98,52 @@ public:
         }
 
         string binary = toBinaryString(logicalAddress);
-        cout << "Logical address : "<< binary << endl;
+        cout << "Logical address : " << binary << endl;
         // uint64_t p = stoi(binary.substr(0,52), nullptr, 2); //change depending on page size
         // uint64_t d = stoi(binary.substr(52,12), nullptr,2);  //change depending on page size
         uint64_t p = stoull(binary.substr(0, 52), nullptr, 2);
         uint64_t d = stoull(binary.substr(52, 12), nullptr, 2);
 
-        cout << "Page number : "<< p << endl;
-        cout << "Offset : "<< d << endl;
-
+        cout << "Page number : " << p << endl;
+        cout << "Offset : " << d << endl;
 
         auto it = process->PageTable.find(p);
-        if(it!=process->PageTable.end()){
+        if (it != process->PageTable.end())
+        {
             cout << "Found!" << endl;
-        }else{
+        }
+        else
+        {
             cout << "pagefault" << endl;
-            process->PageTable[p] = 0; //temp
+            process->PageTable[p] = 0; // temp
         }
     }
-
 };
 
 class PhysicalMemory
 {
 };
 
-string toBinaryString(uint64_t num){
+string toBinaryString(uint64_t num)
+{
     return bitset<64>(num).to_string();
 }
 
-//incorrect binary rep
+// incorrect binary rep
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc < 6)
     {
         cout << "Please enter correct number of arguments" << endl;
         return 1;
     }
 
-    string filename = argv[1];
+    pageSize = stoi(argv[1]);
+    noOfFrames = stoi(argv[2]);
+    replacementPolicy = argv[3];
+    allocationPolicy = argv[4];
+    string filename = argv[5];
     ifstream file(filename);
 
     string str;
@@ -156,10 +170,9 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            cout << "\n \nProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
+            cout << "\n \n ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
             // mm.allocateMemory(processId, logicalAddress);
             mm.checkPageTable(processId, logicalAddress);
-            
         }
     }
 
