@@ -10,6 +10,11 @@
 
 using namespace std;
 
+int pageSize;
+int noOfFrames;
+string replacementPolicy;
+string allocationPolicy;
+
 int globalPageFault;
 string toBinaryString(uint64_t num);
 
@@ -123,13 +128,13 @@ string toBinaryString(uint64_t num){
 
 int main(int argc, char **argv)
 {
-    if (argc < 2)
+    if (argc < 6)
     {
         cout << "Please enter correct number of arguments" << endl;
         return 1;
     }
 
-    string filename = argv[1];
+    string filename = argv[5];
     ifstream file(filename);
 
     string str;
@@ -157,7 +162,7 @@ int main(int argc, char **argv)
             iss >> logicalAddress;
 
             cout << "\n \n ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
-            // mm.allocateMemory(processId, logicalAddress);
+            //mm.allocateMemory(processId, logicalAddress);
             mm.checkPageTable(processId, logicalAddress);
             
         }
