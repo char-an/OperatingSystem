@@ -55,20 +55,23 @@ class MemoryManager
 {
 public:
     vector<Process> ProcessList;
+    map<int,int> PhysicalMemory;
 
-    void allocateMemory(int ProcessId, uint64_t logicalAddress)
+    void allocateMemory(int ProcessId, uint64_t p, uint64_t f)
     {
-        Process *p = getProcessByProcessNumber(ProcessId);
+        Process *process = getProcessByProcessNumber(ProcessId);
 
-        if (p == nullptr)
+        if (process == nullptr)
         {
             Process newProcess(ProcessId);
             ProcessList.push_back(newProcess);
 
-            p = &ProcessList.back();
+            process = &ProcessList.back();
         }
 
-        p->Map(logicalAddress);
+        process->PageTable[p] = f; // for temp purpose
+
+        //process->Map(logicalAddress);
     }
 
     Process *getProcessByProcessNumber(int ProcessNumber)
@@ -83,6 +86,29 @@ public:
         return nullptr;
     }
 
+    //check if free frames present
+    void checkFrames(int ProcessId,uint64_t p){
+        Process *process = getProcessByProcessNumber(ProcessId);
+
+        if (process == nullptr)
+        {
+            Process newProcess(ProcessId);
+            ProcessList.push_back(newProcess);
+
+            process = &ProcessList.back();
+        }
+
+        int frameNumber = -1;
+
+        int length = PhysicalMemory.size();
+        if(length <= noOfFrames){ // free
+            frameNumber = length;
+            allocateMemory(ProcessId,p,frameNumber);
+        }else{                    // need to replace
+
+        }
+    }
+
     void checkPageTable(int ProcessId,uint64_t logicalAddress){
         Process *process = getProcessByProcessNumber(ProcessId);
 
@@ -95,29 +121,26 @@ public:
         }
 
         string binary = toBinaryString(logicalAddress);
-        cout << "Logical address : "<< binary << endl;
-        // uint64_t p = stoi(binary.substr(0,52), nullptr, 2); //change depending on page size
-        // uint64_t d = stoi(binary.substr(52,12), nullptr,2);  //change depending on page size
-        uint64_t p = stoull(binary.substr(0, 52), nullptr, 2);
-        uint64_t d = stoull(binary.substr(52, 12), nullptr, 2);
+        // cout << "Logical address : "<< binary << endl;
+        uint64_t p = stoull(binary.substr(0, 52), nullptr, 2);  // change depending on page size
+        uint64_t d = stoull(binary.substr(52, 12), nullptr, 2); //change depending on page size
 
         cout << "Page number : "<< p << endl;
         cout << "Offset : "<< d << endl;
 
 
         auto it = process->PageTable.find(p);
-        if(it!=process->PageTable.end()){
+        if(it!=process->PageTable.end()){ //found
             cout << "Found!" << endl;
-        }else{
+        }else{                            //page fault
             cout << "pagefault" << endl;
-            process->PageTable[p] = 0; //temp
+            globalPageFault++;
+            process->incrementLocal();
+            //allocation
+            checkFrames(ProcessId,p);
         }
     }
 
-};
-
-class PhysicalMemory
-{
 };
 
 string toBinaryString(uint64_t num){
@@ -134,6 +157,10 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    pageSize = stoi(argv[1]);
+    noOfFrames = stoi(argv[2]);
+    replacementPolicy = argv[3];
+    allocationPolicy = argv[4];
     string filename = argv[5];
     ifstream file(filename);
 
