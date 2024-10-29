@@ -8,6 +8,7 @@
 #include <string>
 #include <bitset>
 #include <cmath>
+#include <queue>
 
 using namespace std;
 
@@ -18,6 +19,8 @@ string allocationPolicy;
 
 int globalPageFault;
 string toBinaryString(uint64_t num);
+
+queue<int> fifoQueue;
 
 class Process
 {
@@ -32,10 +35,15 @@ public:
         this->localPageFault = 0;
     }
 
-    void Map(uint64_t logicalAddress)
-    {
-        //PageTable.insert({logicalAddress, 0});
-        PageTable[logicalAddress] = 0;
+    // void Map(uint64_t logicalAddress)
+    // {
+    //     //PageTable.insert({logicalAddress, 0});
+    //     PageTable[logicalAddress] = 0;
+    // }
+
+    void deleteMapping(uint64_t p){
+        PageTable.erase(p);
+        // cout << "deleted mapping" << endl;
     }
 
     int getProcessNumber()
@@ -56,7 +64,7 @@ class MemoryManager
 {
 public:
     vector<Process> ProcessList;
-    map<int,int> PhysicalMemory;
+    map<int, pair<int, uint64_t> > PhysicalMemory; //key:frame , value:pid,page no.
 
     void allocateMemory(int ProcessId, uint64_t p, uint64_t f)
     {
@@ -89,26 +97,52 @@ public:
     void checkFrames(int ProcessId,uint64_t p){
         Process *process = getProcessByProcessNumber(ProcessId);
 
-        if (process == nullptr)
-        {
-            Process newProcess(ProcessId);
-            ProcessList.push_back(newProcess);
+        // if (process == nullptr)
+        // {
+        //     Process newProcess(ProcessId);
+        //     ProcessList.push_back(newProcess);
 
-            process = &ProcessList.back();
-        }
+        //     process = &ProcessList.back();
+        // }
 
-        int frameNumber = -1;
+        int f = -1;
 
         int length = PhysicalMemory.size();
         //cout << "size of physical memory  " << length << endl;
-        if(length <= noOfFrames){ // free
-            PhysicalMemory[length] = p;
-            frameNumber = length;
-            cout << "proces id : " << ProcessId << " frame no. : " << frameNumber << endl;
-            allocateMemory(ProcessId,p,frameNumber);
-        }else{                    // need to replace
+        if(length < noOfFrames){ // free
+            f = length; // frame number
+            cout << "process id : " << ProcessId << " frame no. : " << f << endl;
+            PhysicalMemory[f] = make_pair(ProcessId,p); //pid and page no.
+            allocateMemory(ProcessId,p,f);
 
+            if(replacementPolicy=="FIFO"){
+                fifoQueue.push(f);
+            }
+
+        }else if(length==noOfFrames){                   // need to replace
+            if(replacementPolicy=="FIFO"){
+                f = fifoQueue.front(); //frame to replace
+                cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+                auto it = PhysicalMemory.find(f);
+                if(it!=PhysicalMemory.end()){
+                    deletePageTableMapping(it->second.first,it->second.second);
+                    PhysicalMemory.erase(f);
+                }else{
+                    cout << "LOGIC ERROR !!" << endl;
+                }
+                fifoQueue.pop();
+                PhysicalMemory[f] = make_pair(ProcessId,p);
+                allocateMemory(ProcessId,p,f);
+                fifoQueue.push(f);
+            }
+        }else{
+            cout << "ERROR!!" << endl;
         }
+    }
+
+    void deletePageTableMapping(int ProcessId,uint64_t p){
+        Process *process = getProcessByProcessNumber(ProcessId);
+        process->deleteMapping(p);
     }
 
     void checkPageTable(int ProcessId,uint64_t logicalAddress){
@@ -125,7 +159,7 @@ public:
         string binary = toBinaryString(logicalAddress);
         // cout << "Logical address : "<< binary << endl;
         int dSize = log2(pageSize);
-        int pSize = 64 - dSize;
+        int pSize = 64 - dSize;  //since 64bit system
         uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);  // change depending on page size
         uint64_t d = stoull(binary.substr(pSize, dSize), nullptr, 2); //change depending on page size
 
@@ -142,6 +176,29 @@ public:
             process->incrementLocal();
             //allocation
             checkFrames(ProcessId,p);
+        }
+    }
+
+    void printPhysicalMemory(){
+        cout << "\nPhysical Memory - " << endl;
+        for (auto it = PhysicalMemory.begin(); it != PhysicalMemory.end(); ++it) {
+            std::cout << "f: " << it->first << ", pid: " << it->second.first << " p: " << it->second.second << std::endl;
+        }
+    }
+
+    void printPageTables(){
+        for(Process &p: ProcessList){
+            cout << "\n ProcessID - " << p.getProcessNumber() << endl;
+            for(auto i : p.PageTable){
+                cout << "p: " << i.first << " f: " << i.second << endl;
+            }
+        }
+    }
+
+    void printFaults(){
+        cout << "\n Global Faults: " << globalPageFault << endl;
+        for(Process &p: ProcessList){
+            cout << "ProcessID: " << p.getProcessNumber() << " Local faults: " << p.getLocal() << endl;
         }
     }
 
@@ -192,12 +249,20 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            cout << "\n \n ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
+            cout << "\n-----------ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
             //mm.allocateMemory(processId, logicalAddress);
             mm.checkPageTable(processId, logicalAddress);
+
+            mm.printPhysicalMemory();
+            mm.printPageTables();
+
             
         }
     }
+
+    mm.printPhysicalMemory();
+    mm.printPageTables();
+    mm.printFaults();
 
     file.close();
     return 0;
