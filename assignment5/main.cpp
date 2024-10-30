@@ -238,17 +238,19 @@ public:
         fifoQueue.push(f);
     }
 
-    void RANDOM(int ProcessId, uint64_t p){
-    int f=rand()%noOfFrames;  // generates a random frame index within range of no.of frames
+    void RANDOM(int ProcessId, uint64_t p)
+    {
+        int f = rand()%noOfFrames;  // generates a random frame index within range of no.of frames
 
-    auto it=PhysicalMemory.find(f);
-    if(it!=PhysicalMemory.end()){
-        deletePageTableMapping(it->second.first,it->second.second);
-        PhysicalMemory.erase(f);
-    }
-    PhysicalMemory[f]=make_pair(ProcessId,p);
-    allocateMemory(ProcessId,p,f);
-}
+        auto it = PhysicalMemory.find(f);
+        if (it != PhysicalMemory.end())
+        {
+            deletePageTableMapping(it->second.first, it->second.second);
+            PhysicalMemory.erase(f);
+        }
+        PhysicalMemory[f] = make_pair(ProcessId, p);
+        allocateMemory(ProcessId, p, f);
+    } 
 
     void deletePageTableMapping(int ProcessId, uint64_t p)
     {
