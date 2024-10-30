@@ -22,6 +22,22 @@ string toBinaryString(uint64_t num);
 
 queue<int> fifoQueue;
 
+// Create Node for LRU replacement policy
+class Node
+{
+public:
+    int f;
+    Node *prev;
+    Node *next;
+
+    Node(int f)
+    {
+        this->f = f;
+        this->next = nullptr;
+        this->prev = nullptr;
+    }
+};
+
 class Process
 {
 public:
@@ -60,7 +76,43 @@ class MemoryManager
 {
 public:
     vector<Process> ProcessList;
-    map<int, pair<int, uint64_t>> PhysicalMemory;
+    map<int, pair<int, uint64_t>> PhysicalMemory; // key:frame , value:pid,page no.
+    // for LRU
+    Node *head;
+    Node *tail;
+
+    // Helper functions for LRU replacement policy
+    void removeNode(Node *node)
+    {
+        if (!node) return;
+
+        if (node == head && node == tail)
+        {
+            head = tail = nullptr;
+        }
+        else if (node == head)
+        {
+            head = head->next;
+            if(!head) head->prev = nullptr;
+        }
+        else if (node == tail)
+        {
+            tail = tail->prev;
+            if(!tail) tail->next = nullptr;
+        }
+        else
+        {
+            if(node->prev) node->prev->next = node->next;
+            if(node->next) node->next->prev = node->prev;
+        }
+    }
+
+    void addToTail(Node *node)
+    {
+        tail->next = node;
+        node->prev = tail;
+        tail = node;
+    }
 
     void allocateMemory(int ProcessId, uint64_t p, uint64_t f)
     {
@@ -70,7 +122,6 @@ public:
         {
             Process newProcess(ProcessId);
             ProcessList.push_back(newProcess);
-
             process = &ProcessList.back();
         }
 
@@ -101,27 +152,72 @@ public:
         if (length < noOfFrames)
         {               // free
             f = length; // frame number
-            cout << "proces id : " << ProcessId << " frame no. : " << f << endl;
-            PhysicalMemory[length] = make_pair(ProcessId, p); // pid and page no.
+            // cout << "process id : " << ProcessId << " frame no. : " << f << endl;
+            PhysicalMemory[f] = make_pair(ProcessId, p); // pid and page no.
             allocateMemory(ProcessId, p, f);
 
-            if (replacementPolicy == "Fifo")
+            if (replacementPolicy == "FIFO")
             {
                 fifoQueue.push(f);
             }
+            else if (replacementPolicy == "LRU")
+            {
+                Node *node = new Node(f);
+                if (!tail)
+                {
+                    head = tail = node;
+                }
+                removeNode(node);
+                addToTail(node);
+            }
         }
-        else if (length >= noOfFrames)
+        else if (length == noOfFrames)
         { // need to replace
-            if (replacementPolicy == "Fifo")
+            if (replacementPolicy == "FIFO")
             {
                 FIFO(ProcessId, p);
             }
+            else if (replacementPolicy == "LRU")
+            {
+                LRU(ProcessId, p);
+            }
         }
+        else
+        {
+            cout << "ERROR!!" << endl;
+        }
+    }
+
+    void LRU(int ProcessId, uint64_t p)
+    {
+        int f = head->f;
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        auto it = PhysicalMemory.find(f);
+        if (it != PhysicalMemory.end())
+        {
+            deletePageTableMapping(it->second.first, it->second.second);
+            PhysicalMemory.erase(f);
+        }
+        else
+        {
+            cout << "LOGIC ERROR !!" << endl;
+        }
+        removeNode(head);
+        PhysicalMemory[f] = make_pair(ProcessId, p);
+        allocateMemory(ProcessId, p, f);
+        Node *node = new Node(f);
+        if (!tail)
+        {
+            head = tail = node;
+        }
+        removeNode(node);
+        addToTail(node);
     }
 
     void FIFO(int ProcessId, uint64_t p)
     {
         int f = fifoQueue.front(); // frame to replace
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
         if (it != PhysicalMemory.end())
         {
@@ -133,6 +229,7 @@ public:
             cout << "LOGIC ERROR !!" << endl;
         }
         fifoQueue.pop();
+        PhysicalMemory[f] = make_pair(ProcessId, p);
         allocateMemory(ProcessId, p, f);
         fifoQueue.push(f);
     }
@@ -162,17 +259,17 @@ public:
         uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);     // change depending on page size
         uint64_t d = stoull(binary.substr(pSize, dSize), nullptr, 2); // change depending on page size
 
-        cout << "Page number : " << p << endl;
-        cout << "Offset : " << d << endl;
+        // cout << "Page number : " << p << endl;
+        // cout << "Offset : " << d << endl;
 
         auto it = process->PageTable.find(p);
         if (it != process->PageTable.end())
         { // found
-            cout << "Found!" << endl;
+            // cout << "Found!" << endl;
         }
         else
         { // page fault
-            cout << "pagefault" << endl;
+            // cout << "pagefault" << endl;
             globalPageFault++;
             process->incrementLocal();
             // allocation
@@ -182,10 +279,10 @@ public:
 
     void printPhysicalMemory()
     {
-        cout << "\n Physical Memory - " << endl;
+        cout << "\nPhysical Memory - " << endl;
         for (auto it = PhysicalMemory.begin(); it != PhysicalMemory.end(); ++it)
         {
-            std::cout << "Key: " << it->first << ", Value: " << it->second.first << std::endl;
+            std::cout << "f: " << it->first << ", pid: " << it->second.first << " p: " << it->second.second << std::endl;
         }
     }
 
@@ -196,7 +293,7 @@ public:
             cout << "\n ProcessID - " << p.getProcessNumber() << endl;
             for (auto i : p.PageTable)
             {
-                cout << "Key: " << i.first << " Value: " << i.second << endl;
+                cout << "p: " << i.first << " f: " << i.second << endl;
             }
         }
     }
@@ -255,8 +352,12 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            cout << "\n ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
+            // cout << "\n-----------ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
+            // mm.allocateMemory(processId, logicalAddress);
             mm.checkPageTable(processId, logicalAddress);
+
+            // mm.printPhysicalMemory();
+            // mm.printPageTables();
         }
     }
 
