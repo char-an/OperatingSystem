@@ -23,6 +23,8 @@ string toBinaryString(uint64_t num);
 
 queue<int> fifoQueue;
 list<int> lrulist;
+// vector for storing file info, used only in case of Optimal replacement policy
+vector<pair<int, uint64_t>> info;
 
 class Process
 {
@@ -129,11 +131,20 @@ public:
             {
                 RANDOM(ProcessId, p);
             }
+            else if (replacementPolicy == "OPTIMAL")
+            {
+                OPIMAL(ProcessId, p);
+            }
         }
         else
         {
             cout << "ERROR!!" << endl;
         }
+    }
+
+    void OPIMAL(int ProcessId, uint64_t p)
+    {
+        
     }
 
     void LRU(int ProcessId, uint64_t p)
@@ -287,6 +298,7 @@ int main(int argc, char **argv)
     noOfFrames = stoi(argv[2]);
     replacementPolicy = argv[3];
     allocationPolicy = argv[4];
+
     string filename = argv[5];
     ifstream file(filename);
 
@@ -314,8 +326,28 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            mm.checkPageTable(processId, logicalAddress);
+            if (replacementPolicy != "OPTIMAL")
+            {
+                mm.checkPageTable(processId, logicalAddress);
+                mm.printPhysicalMemory();
+                mm.printPageTables();
+                cout << endl;
+            }
+            else
+            {
+                // for optimal replacement policy
+                info.push_back(make_pair(processId, logicalAddress));
+            }
+        }
+    }
+    file.close();
 
+    if (replacementPolicy == "OPTIMAL")
+    {
+        // logic for memory allocation in case of optimal replacement policy
+        for (auto p : info)
+        {
+            mm.checkPageTable(p.first, p.second);
             mm.printPhysicalMemory();
             mm.printPageTables();
             cout << endl;
@@ -326,6 +358,5 @@ int main(int argc, char **argv)
     mm.printPageTables();
     mm.printFaults();
 
-    file.close();
     return 0;
 }
