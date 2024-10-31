@@ -24,7 +24,6 @@ string toBinaryString(uint64_t num);
 queue<int> fifoQueue;
 list<int> lrulist;
 
-
 class Process
 {
 public:
@@ -114,7 +113,6 @@ public:
             else if (replacementPolicy == "LRU")
             {
                 lrulist.push_back(f);
-
             }
         }
         else if (length == noOfFrames)
@@ -126,6 +124,10 @@ public:
             else if (replacementPolicy == "LRU")
             {
                 LRU(ProcessId, p);
+            }
+            else if (replacementPolicy == "RANDOM")
+            {
+                RANDOM(ProcessId, p);
             }
         }
         else
@@ -148,7 +150,7 @@ public:
         {
             cout << "LOGIC ERROR !!" << endl;
         }
-        lrulist.pop_front();  // remove head of the linked list
+        lrulist.pop_front(); // remove head of the linked list
         PhysicalMemory[f] = make_pair(ProcessId, p);
         allocateMemory(ProcessId, p, f);
         lrulist.push_back(f);
@@ -172,6 +174,20 @@ public:
         PhysicalMemory[f] = make_pair(ProcessId, p);
         allocateMemory(ProcessId, p, f);
         fifoQueue.push(f);
+    }
+
+    void RANDOM(int ProcessId, uint64_t p)
+    {
+        int f = rand() % noOfFrames; // generates a random frame index within range of no.of frames
+        cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        auto it = PhysicalMemory.find(f);
+        if (it != PhysicalMemory.end())
+        {
+            deletePageTableMapping(it->second.first, it->second.second);
+            PhysicalMemory.erase(f);
+        }
+        PhysicalMemory[f] = make_pair(ProcessId, p);
+        allocateMemory(ProcessId, p, f);
     }
 
     void deletePageTableMapping(int ProcessId, uint64_t p)
@@ -206,7 +222,8 @@ public:
         if (it != process->PageTable.end())
         { // found
             cout << "Found!" << endl;
-            if(replacementPolicy == "LRU"){
+            if (replacementPolicy == "LRU")
+            {
                 // whenever frame is accessed from pageTable, we will update linked list
                 lrulist.remove(process->PageTable[p]);
                 lrulist.push_back(process->PageTable[p]);
