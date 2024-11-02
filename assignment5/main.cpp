@@ -10,6 +10,7 @@
 #include <cmath>
 #include <queue>
 #include <list>
+#include <algorithm>
 
 using namespace std;
 
@@ -25,6 +26,8 @@ queue<int> fifoQueue;
 list<int> lrulist;
 // vector for storing file info, used only in case of Optimal replacement policy
 vector<pair<int, uint64_t>> info;
+vector<int> frameVec;
+int CurrIdx;
 
 class Process
 {
@@ -100,11 +103,11 @@ public:
         int f = -1;
 
         int length = PhysicalMemory.size();
-        cout << "size of physical memory  " << length << endl;
+        // cout << "size of physical memory  " << length << endl;
         if (length < noOfFrames)
         {               // free
             f = length; // frame number
-            cout << "process id : " << ProcessId << " frame no. : " << f << endl;
+            // cout << "process id : " << ProcessId << " frame no. : " << f << endl;
             PhysicalMemory[f] = make_pair(ProcessId, p); // pid and page no.
             allocateMemory(ProcessId, p, f);
 
@@ -115,6 +118,10 @@ public:
             else if (replacementPolicy == "LRU")
             {
                 lrulist.push_back(f);
+            }
+            else if (replacementPolicy == "OPTIMAL")
+            {
+                frameVec.push_back(f);
             }
         }
         else if (length == noOfFrames)
@@ -142,15 +149,78 @@ public:
         }
     }
 
+    int frameToBeRemoved()
+    {
+        int resultantFrame = -1;
+        int maxDist = -1;
+
+        for (int frame : frameVec)
+        {
+            auto it = PhysicalMemory.find(frame); // finding virtual logical address corresponding to frame from PhysicalMemory map
+            int Dist = 0;
+            if (it != PhysicalMemory.end())
+            {
+                for (int i = CurrIdx; i < info.size(); i++)
+                {
+                    // checking when same logical address will be used
+                    auto iter = info[i];
+                    string binary = toBinaryString(iter.second);
+                    int dSize = log2(pageSize);
+                    int pSize = 64 - dSize;
+                    uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);
+                    // cout << "page Number going to be used : " << p << " after " << Dist << endl;
+                    // cout << "page Number of frame in memory : " << it->second.second << endl;
+                    // cout << "corresponding frame : " << frame << endl;
+                    Dist++;
+                    if(p == it->second.second){
+                        break;
+                    }
+                }
+            }
+
+            if(Dist > maxDist){
+                maxDist = Dist;
+                resultantFrame = frame;
+            }
+        }
+        return resultantFrame;
+    }
+
     void OPIMAL(int ProcessId, uint64_t p)
     {
-        
+        // cout << "OPTIMAL" << endl;
+        int f = frameToBeRemoved();
+        if(f == -1){
+            cout << "Error , f == -1" << endl;
+            return ;
+        }
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        auto it = PhysicalMemory.find(f);
+        if (it != PhysicalMemory.end())
+        {
+            deletePageTableMapping(it->second.first, it->second.second);
+            PhysicalMemory.erase(f);
+        }
+        else
+        {
+            cout << "LOGIC ERROR !!" << endl;
+        }
+
+        auto iter = find(frameVec.begin(), frameVec.end(), f);
+
+        if (iter != frameVec.end())
+        {
+            frameVec.erase(iter);
+        }
+        PhysicalMemory[f] = make_pair(ProcessId, p);
+        allocateMemory(ProcessId, p, f);
+        frameVec.push_back(f);
     }
 
     void LRU(int ProcessId, uint64_t p)
     {
         int f = lrulist.front();
-        cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
         if (it != PhysicalMemory.end())
         {
@@ -170,7 +240,7 @@ public:
     void FIFO(int ProcessId, uint64_t p)
     {
         int f = fifoQueue.front(); // frame to replace
-        cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
         if (it != PhysicalMemory.end())
         {
@@ -190,7 +260,7 @@ public:
     void RANDOM(int ProcessId, uint64_t p)
     {
         int f = rand() % noOfFrames; // generates a random frame index within range of no.of frames
-        cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
         if (it != PhysicalMemory.end())
         {
@@ -220,19 +290,19 @@ public:
         }
 
         string binary = toBinaryString(logicalAddress);
-        cout << "Logical address : " << binary << endl;
+        // cout << "Logical address : " << binary << endl;
         int dSize = log2(pageSize);
         int pSize = 64 - dSize;                                       // since 64bit system
         uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);     // change depending on page size
         uint64_t d = stoull(binary.substr(pSize, dSize), nullptr, 2); // change depending on page size
 
-        cout << "Page number : " << p << endl;
-        cout << "Offset : " << d << endl;
+        // cout << "Page number : " << p << endl;
+        // cout << "Offset : " << d << endl;
 
         auto it = process->PageTable.find(p);
         if (it != process->PageTable.end())
         { // found
-            cout << "Found!" << endl;
+            // cout << "Found!" << endl;
             if (replacementPolicy == "LRU")
             {
                 // whenever frame is accessed from pageTable, we will update linked list
@@ -242,7 +312,7 @@ public:
         }
         else
         { // page fault
-            cout << "pagefault" << endl;
+            // cout << "pagefault" << endl;
             globalPageFault++;
             process->incrementLocal();
             // allocation
@@ -329,9 +399,9 @@ int main(int argc, char **argv)
             if (replacementPolicy != "OPTIMAL")
             {
                 mm.checkPageTable(processId, logicalAddress);
-                mm.printPhysicalMemory();
-                mm.printPageTables();
-                cout << endl;
+                // mm.printPhysicalMemory();
+                // mm.printPageTables();
+                // cout << endl;
             }
             else
             {
@@ -345,12 +415,16 @@ int main(int argc, char **argv)
     if (replacementPolicy == "OPTIMAL")
     {
         // logic for memory allocation in case of optimal replacement policy
-        for (auto p : info)
+
+        for (int i = 0; i < info.size(); i++)
         {
+            auto p = info[i];
+            // cout << i << endl;
+            CurrIdx = i; // CurrIdx is the global variable to store current iteration which is needed in replacement
             mm.checkPageTable(p.first, p.second);
-            mm.printPhysicalMemory();
-            mm.printPageTables();
-            cout << endl;
+            // mm.printPhysicalMemory();
+            // mm.printPageTables();
+            // cout << endl;
         }
     }
 
