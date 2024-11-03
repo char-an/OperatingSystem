@@ -153,32 +153,36 @@ public:
     {
         int resultantFrame = -1;
         int maxDist = -1;
+        unordered_map<uint64_t, int> nextUsage;
+
+        for (int i = info.size() - 1; i >= CurrIdx; i--)
+        {
+            auto iter = info[i];
+            string binary = toBinaryString(iter.second);
+            int dSize = log2(pageSize);
+            int pSize = 64 - dSize;
+            uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);
+
+            nextUsage[p] = i;
+        }
 
         for (int frame : frameVec)
         {
-            auto it = PhysicalMemory.find(frame); // finding virtual logical address corresponding to frame from PhysicalMemory map
-            int Dist = 0;
+            auto it = PhysicalMemory.find(frame);
+            int Dist = info.size();
+
             if (it != PhysicalMemory.end())
             {
-                for (int i = CurrIdx; i < info.size(); i++)
+                uint64_t currentPage = it->second.second;
+
+                if (nextUsage.find(currentPage) != nextUsage.end() && nextUsage[currentPage] > CurrIdx)
                 {
-                    // checking when same logical address will be used
-                    auto iter = info[i];
-                    string binary = toBinaryString(iter.second);
-                    int dSize = log2(pageSize);
-                    int pSize = 64 - dSize;
-                    uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);
-                    // cout << "page Number going to be used : " << p << " after " << Dist << endl;
-                    // cout << "page Number of frame in memory : " << it->second.second << endl;
-                    // cout << "corresponding frame : " << frame << endl;
-                    Dist++;
-                    if(p == it->second.second){
-                        break;
-                    }
+                    Dist = nextUsage[currentPage] - CurrIdx;
                 }
             }
 
-            if(Dist > maxDist){
+            if (Dist > maxDist)
+            {
                 maxDist = Dist;
                 resultantFrame = frame;
             }
@@ -190,9 +194,10 @@ public:
     {
         // cout << "OPTIMAL" << endl;
         int f = frameToBeRemoved();
-        if(f == -1){
+        if (f == -1)
+        {
             cout << "Error , f == -1" << endl;
-            return ;
+            return;
         }
         // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
