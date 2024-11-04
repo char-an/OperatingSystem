@@ -157,12 +157,6 @@ public:
         }
         else if(allocationPolicy=="Local"){
 
-            if(process == nullptr){
-                Process newProcess(ProcessId);
-                ProcessList.push_back(newProcess);
-                process = &ProcessList.back();
-            }
-
             if(process->hasFreeFrame()){
                 f=process->allocatedFrames.size();
                 PhysicalMemory[f]=make_pair(ProcessId,p);
