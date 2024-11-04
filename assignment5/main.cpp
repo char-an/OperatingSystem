@@ -439,7 +439,7 @@ int main(int argc, char **argv)
         cout << "Please enter correct number of arguments" << endl;
         return 1;
     }
-
+    srand(time(0));
     pageSize = stoi(argv[1]);
     noOfFrames = stoi(argv[2]);
     noOfFrames_per_p=noOfFrames/4;
