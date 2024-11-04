@@ -4,10 +4,7 @@ build:
 	g++ main.cpp -o main.out
 
 run: build
-	./main.out 4096 10 FIFO Global combined_short.trace
+	./main.out 4096 100 FIFO Local combined.trace
 
 run2: build
-	./main.out 4096 10 RANDOM Global combined.trace
-
-clean:
-	rm main.out
+	./main.out 4096 100 FIFO Global combined.trace

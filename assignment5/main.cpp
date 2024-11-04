@@ -9,12 +9,14 @@
 #include <bitset>
 #include <cmath>
 #include <queue>
-#include <ctime>
+#include <list>
+#include <algorithm>
 
 using namespace std;
 
 int pageSize;
 int noOfFrames;
+int noOfFrames_per_p;
 string replacementPolicy;
 string allocationPolicy;
 
@@ -22,22 +24,11 @@ int globalPageFault;
 string toBinaryString(uint64_t num);
 
 queue<int> fifoQueue;
-
-// Create Node for LRU replacement policy
-class Node
-{
-public:
-    int f;
-    Node *prev;
-    Node *next;
-
-    Node(int f)
-    {
-        this->f = f;
-        this->next = nullptr;
-        this->prev = nullptr;
-    }
-};
+list<int> lrulist;
+// vector for storing file info, used only in case of Optimal replacement policy
+vector<pair<int, uint64_t>> info;
+vector<int> frameVec;
+int CurrIdx;
 
 class Process
 {
@@ -45,6 +36,7 @@ public:
     int ProcessId;
     unordered_map<uint64_t, uint64_t> PageTable;
     int localPageFault;
+    queue<int> allocatedFrames;
 
     Process(int ProcessId)
     {
@@ -71,6 +63,10 @@ public:
     {
         return this->localPageFault;
     }
+
+    bool hasFreeFrame(){
+        return allocatedFrames.size() < noOfFrames_per_p;
+    }
 };
 
 class MemoryManager
@@ -78,42 +74,6 @@ class MemoryManager
 public:
     vector<Process> ProcessList;
     map<int, pair<int, uint64_t>> PhysicalMemory; // key:frame , value:pid,page no.
-    // for LRU
-    Node *head;
-    Node *tail;
-
-    // Helper functions for LRU replacement policy
-    void removeNode(Node *node)
-    {
-        if (!node) return;
-
-        if (node == head && node == tail)
-        {
-            head = tail = nullptr;
-        }
-        else if (node == head)
-        {
-            head = head->next;
-            if(!head) head->prev = nullptr;
-        }
-        else if (node == tail)
-        {
-            tail = tail->prev;
-            if(!tail) tail->next = nullptr;
-        }
-        else
-        {
-            if(node->prev) node->prev->next = node->next;
-            if(node->next) node->next->prev = node->prev;
-        }
-    }
-
-    void addToTail(Node *node)
-    {
-        tail->next = node;
-        node->prev = tail;
-        tail = node;
-    }
 
     void allocateMemory(int ProcessId, uint64_t p, uint64_t f)
     {
@@ -145,56 +105,154 @@ public:
     void checkFrames(int ProcessId, uint64_t p)
     {
         Process *process = getProcessByProcessNumber(ProcessId);
+
         int f = -1;
-        int length = PhysicalMemory.size();
 
-        // cout << "size of physical memory  " << length << endl;
-        if (length < noOfFrames)
-        {               // free
-            f = length; // frame number
-            // cout << "process id : " << ProcessId << " frame no. : " << f << endl;
-            PhysicalMemory[f] = make_pair(ProcessId, p); // pid and page no.
-            allocateMemory(ProcessId, p, f);
+        if(allocationPolicy=="Global"){
+            int length = PhysicalMemory.size();
+            // cout << "size of physical memory  " << length << endl;
+            if (length < noOfFrames)
+            {               // free
+                f = length; // frame number
+                // cout << "process id : " << ProcessId << " frame no. : " << f << endl;
+                PhysicalMemory[f] = make_pair(ProcessId, p); // pid and page no.
+                allocateMemory(ProcessId, p, f);
 
-            if (replacementPolicy == "FIFO")
-            {
-                fifoQueue.push(f);
-            }
-            else if (replacementPolicy == "LRU")
-            {
-                Node *node = new Node(f);
-                if (!tail)
+                if (replacementPolicy == "FIFO")
                 {
-                    head = tail = node;
+                    fifoQueue.push(f);
                 }
-                removeNode(node);
-                addToTail(node);
+                else if (replacementPolicy == "LRU")
+                {
+                    lrulist.push_back(f);
+                }
+                else if (replacementPolicy == "OPTIMAL")
+                {
+                    frameVec.push_back(f);
+                }
+            }
+            else if (length == noOfFrames)
+            { // need to replace
+                if (replacementPolicy == "FIFO")
+                {
+                    FIFO(ProcessId, p);
+                }
+                else if (replacementPolicy == "LRU")
+                {
+                    LRU(ProcessId, p);
+                }
+                else if (replacementPolicy == "RANDOM")
+                {
+                    RANDOM(ProcessId, p);
+                }
+                else if (replacementPolicy == "OPTIMAL")
+                {
+                    OPIMAL(ProcessId, p);
+                }
+            }
+            else
+            {
+                cout << "ERROR!!" << endl;
             }
         }
-        else if (length == noOfFrames)
-        { // need to replace
-            if (replacementPolicy == "FIFO")
-            {
-                FIFO(ProcessId, p);
+        else if(allocationPolicy=="Local"){
+
+            if(process == nullptr){
+                Process newProcess(ProcessId);
+                ProcessList.push_back(newProcess);
+                process = &ProcessList.back();
             }
-            else if (replacementPolicy == "LRU")
-            {
-                LRU(ProcessId, p);
+
+            if(process->hasFreeFrame()){
+                f=process->allocatedFrames.size();
+                PhysicalMemory[f]=make_pair(ProcessId,p);
+                allocateMemory(ProcessId,p,f);
+
+                if (replacementPolicy == "FIFO")
+                {
+                    process->allocatedFrames.push(f);
+                }
+                else if (replacementPolicy == "LRU")
+                {
+                    lrulist.push_back(f);
+                }
+                else if (replacementPolicy == "OPTIMAL")
+                {
+                    frameVec.push_back(f);
+                }
             }
-            else if (replacementPolicy == "RANDOM")
-            {
-                RANDOM(ProcessId, p);
+
+            else{
+                if (replacementPolicy == "FIFO")
+                {
+                    FIFO_Local(ProcessId, p);
+                }
+                else if (replacementPolicy == "LRU")
+                {
+                    LRU(ProcessId, p);
+                }
+                else if (replacementPolicy == "RANDOM")
+                {
+                    RANDOM(ProcessId, p);
+                }
+                else if (replacementPolicy == "OPTIMAL")
+                {
+                    OPIMAL(ProcessId, p);
+                }
             }
-        }
-        else
-        {
-            cout << "ERROR!!" << endl;
         }
     }
 
-    void LRU(int ProcessId, uint64_t p)
+    int frameToBeRemoved()
     {
-        int f = head->f;
+        int resultantFrame = -1;
+        int maxDist = -1;
+        unordered_map<uint64_t, int> nextUsage;
+
+        for (int i = info.size() - 1; i >= CurrIdx; i--)
+        {
+            auto iter = info[i];
+            string binary = toBinaryString(iter.second);
+            int dSize = log2(pageSize);
+            int pSize = 64 - dSize;
+            uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);
+
+            nextUsage[p] = i;
+        }
+
+        for (int frame : frameVec)
+        {
+            auto it = PhysicalMemory.find(frame);
+            int Dist = info.size();
+
+            if (it != PhysicalMemory.end())
+            {
+                uint64_t currentPage = it->second.second;
+
+                if (nextUsage.find(currentPage) != nextUsage.end() && nextUsage[currentPage] > CurrIdx)
+                {
+                    Dist = nextUsage[currentPage] - CurrIdx;
+                }
+            }
+
+            if (Dist > maxDist)
+            {
+                maxDist = Dist;
+                resultantFrame = frame;
+            }
+        }
+        return resultantFrame;
+    }
+
+    void OPIMAL(int ProcessId, uint64_t p)
+    {
+        // cout << "OPTIMAL" << endl;
+        int f = frameToBeRemoved();
+        if (f == -1)
+        {
+            cout << "Error , f == -1" << endl;
+            return;
+        }
         // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
         if (it != PhysicalMemory.end())
@@ -206,16 +264,36 @@ public:
         {
             cout << "LOGIC ERROR !!" << endl;
         }
-        removeNode(head);
+
+        auto iter = find(frameVec.begin(), frameVec.end(), f);
+
+        if (iter != frameVec.end())
+        {
+            frameVec.erase(iter);
+        }
         PhysicalMemory[f] = make_pair(ProcessId, p);
         allocateMemory(ProcessId, p, f);
-        Node *node = new Node(f);
-        if (!tail)
+        frameVec.push_back(f);
+    }
+
+    void LRU(int ProcessId, uint64_t p)
+    {
+        int f = lrulist.front();
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        auto it = PhysicalMemory.find(f);
+        if (it != PhysicalMemory.end())
         {
-            head = tail = node;
+            deletePageTableMapping(it->second.first, it->second.second);
+            PhysicalMemory.erase(f);
         }
-        removeNode(node);
-        addToTail(node);
+        else
+        {
+            cout << "LOGIC ERROR !!" << endl;
+        }
+        lrulist.pop_front(); // remove head of the linked list
+        PhysicalMemory[f] = make_pair(ProcessId, p);
+        allocateMemory(ProcessId, p, f);
+        lrulist.push_back(f);
     }
 
     void FIFO(int ProcessId, uint64_t p)
@@ -238,10 +316,33 @@ public:
         fifoQueue.push(f);
     }
 
+    void FIFO_Local(int ProcessId, uint64_t p){
+
+        Process *process = getProcessByProcessNumber(ProcessId);
+
+        if(process && !process->allocatedFrames.empty()){
+            int f=process->allocatedFrames.front(); // frame to replace
+            auto it = PhysicalMemory.find(f);
+            if (it != PhysicalMemory.end()) 
+            {
+                deletePageTableMapping(it->second.first, it->second.second);
+                PhysicalMemory.erase(f);
+            }
+            else
+            {
+                cout << "LOGIC ERROR !!" << endl;
+            }
+            process->allocatedFrames.pop();
+            PhysicalMemory[f] = make_pair(ProcessId, p);
+            allocateMemory(ProcessId, p, f);
+            process->allocatedFrames.push(f);
+        }
+    }
+
     void RANDOM(int ProcessId, uint64_t p)
     {
-        int f = rand()%noOfFrames;  // generates a random frame index within range of no.of frames
-
+        int f = rand() % noOfFrames; // generates a random frame index within range of no.of frames
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
         auto it = PhysicalMemory.find(f);
         if (it != PhysicalMemory.end())
         {
@@ -250,7 +351,7 @@ public:
         }
         PhysicalMemory[f] = make_pair(ProcessId, p);
         allocateMemory(ProcessId, p, f);
-    } 
+    }
 
     void deletePageTableMapping(int ProcessId, uint64_t p)
     {
@@ -271,7 +372,7 @@ public:
         }
 
         string binary = toBinaryString(logicalAddress);
-        // cout << "Logical address : "<< binary << endl;
+        // cout << "Logical address : " << binary << endl;
         int dSize = log2(pageSize);
         int pSize = 64 - dSize;                                       // since 64bit system
         uint64_t p = stoull(binary.substr(0, pSize), nullptr, 2);     // change depending on page size
@@ -284,6 +385,12 @@ public:
         if (it != process->PageTable.end())
         { // found
             // cout << "Found!" << endl;
+            if (replacementPolicy == "LRU")
+            {
+                // whenever frame is accessed from pageTable, we will update linked list
+                lrulist.remove(process->PageTable[p]);
+                lrulist.push_back(process->PageTable[p]);
+            }
         }
         else
         { // page fault
@@ -297,7 +404,7 @@ public:
 
     void printPhysicalMemory()
     {
-        cout << "\nPhysical Memory - " << endl;
+        cout << "\nPhysical Memory  - " << endl;
         for (auto it = PhysicalMemory.begin(); it != PhysicalMemory.end(); ++it)
         {
             std::cout << "f: " << it->first << ", pid: " << it->second.first << " p: " << it->second.second << std::endl;
@@ -338,11 +445,14 @@ int main(int argc, char **argv)
         cout << "Please enter correct number of arguments" << endl;
         return 1;
     }
-    srand(time(0)); //seeding to avoid same result
+
     pageSize = stoi(argv[1]);
     noOfFrames = stoi(argv[2]);
+    noOfFrames_per_p=noOfFrames/4;
+    noOfFrames_per_p=25;  //comment out as per need
     replacementPolicy = argv[3];
     allocationPolicy = argv[4];
+
     string filename = argv[5];
     ifstream file(filename);
 
@@ -370,12 +480,35 @@ int main(int argc, char **argv)
             uint64_t logicalAddress;
             iss >> logicalAddress;
 
-            // cout << "\n-----------ProcessId is: " << processId << " and Logical address is: " << logicalAddress << endl;
-            // mm.allocateMemory(processId, logicalAddress);
-            mm.checkPageTable(processId, logicalAddress);
+            if (replacementPolicy != "OPTIMAL")
+            {
+                mm.checkPageTable(processId, logicalAddress);
+                // mm.printPhysicalMemory();
+                // mm.printPageTables();
+                // cout << endl;
+            }
+            else
+            {
+                // for optimal replacement policy
+                info.push_back(make_pair(processId, logicalAddress));
+            }
+        }
+    }
+    file.close();
 
+    if (replacementPolicy == "OPTIMAL")
+    {
+        // logic for memory allocation in case of optimal replacement policy
+
+        for (int i = 0; i < info.size(); i++)
+        {
+            auto p = info[i];
+            // cout << i << endl;
+            CurrIdx = i; // CurrIdx is the global variable to store current iteration which is needed in replacement
+            mm.checkPageTable(p.first, p.second);
             // mm.printPhysicalMemory();
             // mm.printPageTables();
+            // cout << endl;
         }
     }
 
@@ -383,6 +516,5 @@ int main(int argc, char **argv)
     mm.printPageTables();
     mm.printFaults();
 
-    file.close();
     return 0;
 }
