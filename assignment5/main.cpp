@@ -65,7 +65,7 @@ public:
     }
 
     bool hasFreeFrame(){
-        return allocatedFrames.size() < noOfFrames_per_p;
+        return allocatedFrames.size() <= noOfFrames_per_p;
     }
 };
 
