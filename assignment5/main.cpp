@@ -65,7 +65,7 @@ public:
     }
 
     bool hasFreeFrame(){
-        return this->allocatedFrames.size() <= noOfFrames_per_p;
+        return this->allocatedFrames.size() < noOfFrames_per_p;
     }
 };
 
@@ -111,8 +111,8 @@ public:
         if(allocationPolicy=="Global"){
             int length = PhysicalMemory.size();
             // cout << "size of physical memory  " << length << endl;
-            if (length < noOfFrames)
-            {               // free
+            if (length < noOfFrames)                // free
+            {               
                 f = length; // frame number
                 // cout << "process id : " << ProcessId << " frame no. : " << f << endl;
                 PhysicalMemory[f] = make_pair(ProcessId, p); // pid and page no.
@@ -131,8 +131,8 @@ public:
                     frameVec.push_back(f);
                 }
             }
-            else if (length == noOfFrames)
-            { // need to replace
+            else if (length == noOfFrames)     // need to replace
+            { 
                 if (replacementPolicy == "FIFO")
                 {
                     FIFO(ProcessId, p);
@@ -156,9 +156,11 @@ public:
             }
         }
         else if(allocationPolicy=="Local"){
+            int length = PhysicalMemory.size();
 
             if(process->hasFreeFrame()){
-                f=process->allocatedFrames.size();
+                // cout << length<<endl;
+                f=length;
                 PhysicalMemory[f]=make_pair(ProcessId,p);
                 allocateMemory(ProcessId,p,f);
 
@@ -314,7 +316,7 @@ public:
 
         Process *process = getProcessByProcessNumber(ProcessId);
 
-        if(process && !process->allocatedFrames.empty()){
+        
             int f=process->allocatedFrames.front(); // frame to replace
             auto it = PhysicalMemory.find(f);
             if (it != PhysicalMemory.end()) 
@@ -330,7 +332,7 @@ public:
             PhysicalMemory[f] = make_pair(ProcessId, p);
             allocateMemory(ProcessId, p, f);
             process->allocatedFrames.push(f);
-        }
+        
     }
 
     void RANDOM(int ProcessId, uint64_t p)
@@ -353,6 +355,7 @@ public:
         process->deleteMapping(p);
     }
 
+    //check if mapping present 
     void checkPageTable(int ProcessId, uint64_t logicalAddress)
     {
         Process *process = getProcessByProcessNumber(ProcessId);
@@ -376,8 +379,8 @@ public:
         // cout << "Offset : " << d << endl;
 
         auto it = process->PageTable.find(p);
-        if (it != process->PageTable.end())
-        { // found
+        if (it != process->PageTable.end())     // found
+        { 
             // cout << "Found!" << endl;
             if (replacementPolicy == "LRU")
             {
@@ -386,8 +389,8 @@ public:
                 lrulist.push_back(process->PageTable[p]);
             }
         }
-        else
-        { // page fault
+        else                                   // page fault
+        { 
             // cout << "pagefault" << endl;
             globalPageFault++;
             process->incrementLocal();
@@ -443,7 +446,7 @@ int main(int argc, char **argv)
     pageSize = stoi(argv[1]);
     noOfFrames = stoi(argv[2]);
     noOfFrames_per_p=noOfFrames/4;
-    noOfFrames_per_p=25;  //comment out as per need
+    // noOfFrames_per_p=25;  //comment out as per need
     replacementPolicy = argv[3];
     allocationPolicy = argv[4];
 
