@@ -184,10 +184,34 @@ public:
 
     void OPTIMAL(int ProcessId, uint64_t p)
     {
+        // cout << "OPTIMAL" << endl;
         int f = frameToBeRemoved();
         if (f == -1)
+        {
+            cout << "Error , f == -1" << endl;
             return;
-        removeFrame(f, ProcessId, p);
+        }
+        // cout << "replacement - process id : " << ProcessId << " frame no. : " << f << endl;
+        auto it = PhysicalMemory.find(f);
+        if (it != PhysicalMemory.end())
+        {
+            deletePageTableMapping(it->second.first, it->second.second);
+            PhysicalMemory.erase(f);
+        }
+        else
+        {
+            cout << "LOGIC ERROR !!" << endl;
+        }
+
+        auto iter = find(frameVec.begin(), frameVec.end(), f);
+
+        if (iter != frameVec.end())
+        {
+            frameVec.erase(iter);
+        }
+        PhysicalMemory[f] = make_pair(ProcessId, p);
+        allocateMemory(ProcessId, p, f);
+        frameVec.push_back(f);
     }
 
     int frameToBeRemoved()
