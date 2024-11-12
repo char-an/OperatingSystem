@@ -8,7 +8,6 @@
 
 using namespace std;
 
-
 void searchPattern(char *fileName, char *pattern, int start, int end) {
     pid_t pid = fork();
     if (pid < 0) {
